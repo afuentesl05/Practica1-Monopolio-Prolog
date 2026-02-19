@@ -61,3 +61,18 @@ Todo el razonamiento se implementa manualmente con los mecanismos básicos de Pr
 
 ## 📂 Estructura
 
+PLX-Monopoly-Reasoning/
+├─ main.pl
+├─ README.md
+├─ docs/
+│  ├─ Informe.pdf            
+│  ├─ minutas/
+│  │  ├─ minuta_01.md
+│  │  ├─ minuta_02.md
+│  │  └─ minuta_03.md
+│  └─ enunciado/
+│     └─ Practica1_2025-26.pdf  
+├─ tests/
+│  └─ main_test.pl          
+└─ .gitignore
+

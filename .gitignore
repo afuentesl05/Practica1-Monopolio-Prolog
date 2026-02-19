@@ -1,0 +1,30 @@
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- VSCode ----
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ---- Prolog / SWI-Prolog ----
+*.qlf
+*.qlf.*
+*.tmp
+*.bak
+*.swp
+
+# Sometimes generated logs
+*.log
+
+# ---- Build / output folders (if any) ----
+dist/
+build/
+out/
+
+# ---- Node / Python (if you ever add tooling) ----
+node_modules/
+__pycache__/
+*.pyc
