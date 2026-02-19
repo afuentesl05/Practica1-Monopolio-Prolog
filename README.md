@@ -1,2 +1,63 @@
-# Practica1-Monopolio-Prolog
-Práctica 1 – Representación y lógica del Monopolio en Prolog.  Modelado de estados, manipulación de listas y aplicación iterativa de reglas.
+# PLX – Monopoly Reasoning in Prolog
+
+Práctica 1 de la asignatura **Conocimiento y Razonamiento Automatizado (2025-26)**.
+
+## 🎯 Objetivo
+
+Implementar en Prolog una representación simbólica del juego del Monopolio,
+centrándose en:
+
+- Manipulación avanzada de listas
+- Representación de estados dinámicos
+- Aplicación iterativa de reglas
+- Razonamiento automatizado
+- Control de turnos
+
+No se utilizan librerías externas ni predicados avanzados.
+Todo el razonamiento se implementa manualmente con los mecanismos básicos de Prolog.
+
+---
+
+## 🧠 Componentes del sistema
+
+- Representación del tablero (lista de 40 elementos)
+- Representación del estado global:
+  - Jugadores
+  - Turno actual
+  - Propiedades
+- Simulación de movimiento
+- Aplicación de reglas:
+  - Compra
+  - Alquiler
+  - Monopolio
+  - Bancarrota
+- Iteración por turnos
+- Métricas
+
+---
+
+## Estructura
+
+- main.pl
+- reglas.pl
+- metricas.pl
+- Informe.pdf
+
+---
+
+## 👥 Equipo
+
+- Lucía Cantero Anchuelo
+- Álvaro Fuentes Lozano
+- Rodrigo Rey Henche
+
+---
+
+## 🛠 Entorno
+
+- SWI-Prolog
+- VSCode
+
+
+## 📂 Estructura
+
