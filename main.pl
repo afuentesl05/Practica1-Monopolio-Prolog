@@ -27,12 +27,12 @@ Donde:
   Se modela como índice entero sobre la lista Jugadores,
   lo que facilita el cálculo del siguiente turno mediante aritmética modular.
 */
-
+%hola esto es una prueba de commit
 % Estructuras base del modelo:
 % estado(Jugadores, Tablero, Turno).
 % jugador(Nombre, Posicion, Dinero, Propiedades).
 
-% Estado inicial mínimo para pruebas
+% Estado inicial minimo para pruebas
 estado_inicial(
     estado(
         [ jugador(ana, 0, 1500, []),
