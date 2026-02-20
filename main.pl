@@ -32,7 +32,7 @@ Donde:
 % estado(Jugadores, Tablero, Turno).
 % jugador(Nombre, Posicion, Dinero, Propiedades).
 
-% Estado inicial mínimo para pruebas
+% Estado inicial minimo para pruebas
 estado_inicial(
     estado(
         [ jugador(ana, 0, 1500, []),
