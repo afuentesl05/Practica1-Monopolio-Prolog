@@ -27,7 +27,8 @@ Donde:
   Se modela como índice entero sobre la lista Jugadores,
   lo que facilita el cálculo del siguiente turno mediante aritmética modular.
 */
-%hola esto es una prueba de commit
+
+
 % Estructuras base del modelo:
 % estado(Jugadores, Tablero, Turno).
 % jugador(Nombre, Posicion, Dinero, Propiedades).
@@ -46,3 +47,49 @@ estado_inicial(
         0
     )
 ).
+
+% =====================================
+% ISSUE 2 – UTILIDADES DE ACTUALIZACIÓN
+% =====================================
+
+/*
+Capa funcional de acceso/actualización.
+
+- get_jugador/3: extrae el jugador por Nombre.
+- set_jugador/4: sustituye el jugador por Nombre, devolviendo nueva lista.
+- update_pos/3, update_dinero/3, add_prop/3: transformaciones puras sobre jugador/4.
+
+Diseño para evitar choicepoints:
+- Predicados deterministas bajo el invariante "Nombre único".
+- Cortes (!) tras encontrar el objetivo en la lista.
+*/
+
+%% get_jugador(+Nombre, +Jugadores, -Jugador)
+%  Verdadero si Jugador es el jugador con ese Nombre dentro de la lista Jugadores.
+%  Determinista si el Nombre es único.
+get_jugador(Nombre, [jugador(Nombre, Pos, Din, Props) | _],
+            jugador(Nombre, Pos, Din, Props)) :- !.
+get_jugador(Nombre, [_ | Resto], Jugador) :-
+    get_jugador(Nombre, Resto, Jugador).
+
+%% set_jugador(+Nombre, +Jugadores, +JugadorNuevo, -JugadoresNuevo)
+%  Sustituye al jugador con Nombre por JugadorNuevo, produciendo una nueva lista.
+%  Determinista si el Nombre es único.
+set_jugador(Nombre, [jugador(Nombre, _, _, _) | Resto],
+            JugadorNuevo, [JugadorNuevo | Resto]) :- !.
+set_jugador(Nombre, [J | Resto], JugadorNuevo, [J | RestoNuevo]) :-
+    set_jugador(Nombre, Resto, JugadorNuevo, RestoNuevo).
+
+%% update_pos(+Jugador, +NuevaPos, -JugadorActualizado)
+update_pos(jugador(N, _Pos, Din, Props), NuevaPos,
+           jugador(N, NuevaPos, Din, Props)).
+
+%% update_dinero(+Jugador, +NuevoDinero, -JugadorActualizado)
+update_dinero(jugador(N, Pos, _Din, Props), NuevoDinero,
+              jugador(N, Pos, NuevoDinero, Props)).
+
+%% add_prop(+Jugador, +PropId, -JugadorActualizado)
+%  Añade una propiedad al final (sin comprobar duplicados).
+add_prop(jugador(N, Pos, Din, Props), PropId,
+         jugador(N, Pos, Din, Props2)) :-
+    append(Props, [PropId], Props2).
