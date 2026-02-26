@@ -1,4 +1,4 @@
-# PLX – Monopoly Reasoning in Prolog
+# PL1 – Monopoly PROLOG
 
 Práctica 1 de la asignatura **Conocimiento y Razonamiento Automatizado (2025-26)**.
 
