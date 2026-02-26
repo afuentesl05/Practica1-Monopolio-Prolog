@@ -39,8 +39,6 @@ Todo el razonamiento se implementa manualmente con los mecanismos básicos de Pr
 ## Estructura
 
 - main.pl
-- reglas.pl
-- metricas.pl
 - Informe.pdf
 
 ---
