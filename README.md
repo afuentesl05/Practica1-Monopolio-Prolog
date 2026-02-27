@@ -77,7 +77,3 @@ PLX-Monopoly-Reasoning/
 └── .gitignore
 ```
 
-## Notas
-
-Discuss implementación de las casillas al principio
-pensar primero en la casilla --> abstraer a tablero
