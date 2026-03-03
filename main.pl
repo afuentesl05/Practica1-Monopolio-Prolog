@@ -243,7 +243,7 @@ simular_movimientos(EstadoIn, [T|Ts], EstadoOut) :-
 
 /*
 Motor de turnos (sin reglas aún):
-- siguiente_turno/2: rota el jugador activo (Turno) circularmente.
+- avanzar_turno/2: rota el jugador activo (Turno) circularmente.
 - turno_base/3: ejecuta un turno mínimo: mover con tirada + pasar turno.
 - simular/5: simula N turnos consecutivos consumiendo tiradas predefinidas.
 
@@ -254,16 +254,6 @@ Invariantes que preservamos:
 */
 
 /*
- siguiente_turno(+EstadoIn, -EstadoOut)
-  Alterna el jugador activo de forma circular.
-*/
-siguiente_turno(estado(Js, Tablero, Turno),
-                estado(Js, Tablero, Turno2)) :-
-    length(Js, N),
-    N > 0,
-    Turno2 is (Turno + 1) mod N.
-
-/*
  turno_base(+EstadoIn, +Tirada, -EstadoOut)
   Ejecuta un turno mínimo:
   1) mover al jugador activo con Tirada
@@ -271,7 +261,7 @@ siguiente_turno(estado(Js, Tablero, Turno),
 */
 turno_base(EstadoIn, Tirada, EstadoOut) :-
     mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
-    siguiente_turno(EstadoMov, EstadoOut).
+    avanzar_turno(EstadoMov, EstadoOut).
 
 
 /*
