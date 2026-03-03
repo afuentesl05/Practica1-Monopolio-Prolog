@@ -197,7 +197,7 @@ mover(estado(Js, Tablero, Turno), Tirada,
     integer(Tirada),
     Tirada >= 0,
     length(Tablero, 40),                      % asegura mod 40 correcto (tablero fijo)
-    nth0(Turno, Js, Jugador),                 % jugador activo por índice
+    nth0(Turno, Js, Jugador),                 % Jugador de lista jugadores con indice Turno
     Jugador = jugador(Nombre, Pos, Din, Props),
 
     Suma is Pos + Tirada,
@@ -230,7 +230,7 @@ avanzar_turno(estado(Js, Tablero, Turno),
    (Esto cumple la parte de "simulación mediante lista predefinida" sin aleatorio.)
 */
 
-simular_movimientos(Estado, [], Estado) :- !.
+simular_movimientos(Estado, [], Estado) :- !.  %si no hay tiradas, estado inicial = estado final
 simular_movimientos(EstadoIn, [T|Ts], EstadoOut) :-
     mover(EstadoIn, T, EstadoMov, _Paso),
     avanzar_turno(EstadoMov, EstadoNext),
