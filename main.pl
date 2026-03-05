@@ -275,3 +275,73 @@ simular(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
 simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
     length(ListaTiradas, N),
     simular(EstadoIn, ListaTiradas, N, EstadoOut, []).
+
+% =====================================
+% ISSUE 6 – REGLA 0 (COMPRA DE PROPIEDAD)
+% =====================================
+
+/*
+Regla 0 (Compra):
+Si el jugador activo cae en una casilla propiedad(Id, Precio, _),
+y la propiedad no tiene dueño (ningún jugador la posee),
+y el jugador tiene Dinero >= Precio,
+entonces:
+- se descuenta el Precio del dinero
+- se añade Id a la lista de propiedades del jugador
+- se actualiza la lista de jugadores en el estado
+
+Diseño:
+- El dueño de una propiedad se representa implícitamente en la lista Propiedades de los jugadores.
+- El tablero no se modifica (estructura fija).
+- El predicado regla_compra/2 es determinista y siempre tiene éxito:
+  si no se puede comprar, devuelve el mismo estado.
+*/
+
+/*
+ casilla_actual(+Estado, -Casilla)
+  Obtiene la casilla donde está el jugador activo.
+*/
+casilla_actual(estado(Js, Tablero, Turno), Casilla) :-
+    nth0(Turno, Js, jugador(_, Pos, _, _)),
+    nth0(Pos, Tablero, Casilla).
+
+/*
+ jugador_tiene_prop(+PropId, +Jugador)
+  Verdadero si el jugador ya posee esa propiedad.
+  memberchk/2 es semidet y no deja choicepoints.
+*/
+jugador_tiene_prop(PropId, jugador(_, _, _, Props)) :-
+    memberchk(PropId, Props).
+
+/*
+ propiedad_sin_dueno(+PropId, +Jugadores)
+  Verdadero si ningún jugador tiene PropId en su lista.
+*/
+propiedad_sin_dueno(PropId, Jugadores) :-
+    \+ ( member(J, Jugadores),
+         jugador_tiene_prop(PropId, J)
+       ).
+
+/*
+ regla_compra(+EstadoIn, -EstadoOut)
+  Aplica la compra si procede. Si no procede, EstadoOut = EstadoIn.
+  Determinista y sin choicepoints innecesarios.
+*/
+regla_compra(EstadoIn, EstadoOut) :-
+    EstadoIn = estado(Js, Tablero, Turno),
+    nth0(Turno, Js, Jugador),
+    Jugador = jugador(Nombre, Pos, Din, Props),
+    nth0(Pos, Tablero, Casilla),
+
+    (   Casilla = propiedad(PropId, Precio, _),
+        propiedad_sin_dueno(PropId, Js),
+        Din >= Precio,
+        \+ memberchk(PropId, Props)          % evita duplicados si cae en suya
+    ->  Din2 is Din - Precio,
+        update_dinero(Jugador, Din2, Jtmp),
+        add_prop(Jtmp, PropId, Jugador2),
+        set_jugador(Nombre, Js, Jugador2, Js2),
+        EstadoOut = estado(Js2, Tablero, Turno)
+    ;   EstadoOut = EstadoIn
+    ),
+    !.
