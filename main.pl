@@ -224,17 +224,6 @@ avanzar_turno(estado(Js, Tablero, Turno),
     N > 0,
     Turno2 is (Turno + 1) mod N.
 
-/*
-   simular_movimientos(+EstadoIn, +ListaTiradas, -EstadoOut)
-   Simula una secuencia de tiradas predefinidas, avanzando el turno tras cada movimiento.
-   (Esto cumple la parte de "simulación mediante lista predefinida" sin aleatorio.)
-*/
-
-simular_movimientos(Estado, [], Estado) :- !.  %si no hay tiradas, estado inicial = estado final
-simular_movimientos(EstadoIn, [T|Ts], EstadoOut) :-
-    mover(EstadoIn, T, EstadoMov, _Paso),
-    avanzar_turno(EstadoMov, EstadoNext),
-    simular_movimientos(EstadoNext, Ts, EstadoOut).
 
 
 % =====================================
@@ -277,3 +266,12 @@ simular(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
     turno_base(EstadoIn, T, EstadoNext),
     N1 is N - 1,
     simular(EstadoNext, Ts, N1, EstadoOut, TiradasRestantes).
+/*
+   simular_movimientos(+EstadoIn, +ListaTiradas, -EstadoOut)
+   Wrapper sobre simular/5:
+   - Consume TODA la lista de tiradas (equivale a simular N turnos con N = length(ListaTiradas)).
+   - Exige que no sobren tiradas (por construcción Rest = []).
+*/
+simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
+    length(ListaTiradas, N),
+    simular(EstadoIn, ListaTiradas, N, EstadoOut, []).
