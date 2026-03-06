@@ -97,11 +97,10 @@ update_dinero(jugador(N, Pos, _Din, Props), NuevoDinero,
 
 /*
   add_prop(+Jugador, +PropId, -JugadorActualizado)
-  Añade una propiedad al final (sin comprobar duplicados).
+  Añade una propiedad.
 */
 add_prop(jugador(N, Pos, Din, Props), PropId,
-         jugador(N, Pos, Din, Props2)) :-
-    append(Props, [PropId], Props2).
+         jugador(N, Pos, Din, [PropId|Props])).
 
 
 % =====================================
@@ -231,15 +230,10 @@ avanzar_turno(estado(Js, Tablero, Turno),
 % =====================================
 
 /*
-Motor de turnos (sin reglas aún):
-- avanzar_turno/2: rota el jugador activo (Turno) circularmente.
-- turno_base/3: ejecuta un turno mínimo: mover con tirada + pasar turno.
-- simular/5: simula N turnos consecutivos consumiendo tiradas predefinidas.
-
-Invariantes que preservamos:
-- Turno siempre queda en 0..N-1
-- Posicion de cada jugador queda en 0..39 (por mover/4 con mod 40)
-- Tablero se mantiene (no se muta en estas issues)
+Motor de turnos básico (sin aplicar reglas):
+- turno_base/3: mover + avanzar turno.
+- simular/5: simula N turnos básicos consumiendo N tiradas.
+- simular_movimientos/3: consume toda la lista de tiradas (wrapper).
 */
 
 /*
@@ -252,12 +246,11 @@ turno_base(EstadoIn, Tirada, EstadoOut) :-
     mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
     avanzar_turno(EstadoMov, EstadoOut).
 
-
 /*
  simular(+EstadoIn, +Tiradas, +N, -EstadoOut, -TiradasRestantes)
-  Simula N turnos consecutivos consumiendo N tiradas de la lista.
+  Simula N turnos básicos consumiendo N tiradas de la lista.
   - Si N = 0, no consume tiradas.
-  - Si faltan tiradas para N, falla (decisión explícita para evitar estados a medias).
+  - Si faltan tiradas para N, falla.
 */
 simular(Estado, Tiradas, 0, Estado, Tiradas) :- !.
 simular(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
@@ -266,36 +259,35 @@ simular(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
     turno_base(EstadoIn, T, EstadoNext),
     N1 is N - 1,
     simular(EstadoNext, Ts, N1, EstadoOut, TiradasRestantes).
+
 /*
-   simular_movimientos(+EstadoIn, +ListaTiradas, -EstadoOut)
-   Wrapper sobre simular/5:
-   - Consume TODA la lista de tiradas (equivale a simular N turnos con N = length(ListaTiradas)).
-   - Exige que no sobren tiradas (por construcción Rest = []).
+ simular_movimientos(+EstadoIn, +ListaTiradas, -EstadoOut)
+  Wrapper que consume toda la lista de tiradas usando turnos básicos.
 */
 simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
     length(ListaTiradas, N),
     simular(EstadoIn, ListaTiradas, N, EstadoOut, []).
 
 % =====================================
-% ISSUE 6 – REGLA 0 (COMPRA DE PROPIEDAD)
+% HELPERS Compra y Alquiler
 % =====================================
 
 /*
-Regla 0 (Compra):
-Si el jugador activo cae en una casilla propiedad(Id, Precio, _),
-y la propiedad no tiene dueño (ningún jugador la posee),
-y el jugador tiene Dinero >= Precio,
-entonces:
-- se descuenta el Precio del dinero
-- se añade Id a la lista de propiedades del jugador
-- se actualiza la lista de jugadores en el estado
-
-Diseño:
-- El dueño de una propiedad se representa implícitamente en la lista Propiedades de los jugadores.
-- El tablero no se modifica (estructura fija).
-- El predicado regla_compra/2 es determinista y siempre tiene éxito:
-  si no se puede comprar, devuelve el mismo estado.
+ propietario_de(+PropId, +Jugadores, -NombreProp, -JugadorProp)
+  Determina el propietario de PropId. Falla si nadie la posee.
+  Determinista si la propiedad solo puede pertenecer a un jugador.
 */
+propietario_de(PropId, [jugador(Nombre,Pos,Din,Props)|_], Nombre, jugador(Nombre,Pos,Din,Props)) :-
+    memberchk(PropId, Props), !.
+propietario_de(PropId, [_|Resto], NombreProp, JugadorProp) :-
+    propietario_de(PropId, Resto, NombreProp, JugadorProp).
+
+/*
+ propiedad_sin_dueno(+PropId, +Jugadores)
+  Verdadero si la propiedad no tiene propietario.
+*/
+propiedad_sin_dueno(PropId, Jugadores) :-
+    \+ propietario_de(PropId, Jugadores, _Nombre, _Jugador).
 
 /*
  casilla_actual(+Estado, -Casilla)
@@ -305,38 +297,46 @@ casilla_actual(estado(Js, Tablero, Turno), Casilla) :-
     nth0(Turno, Js, jugador(_, Pos, _, _)),
     nth0(Pos, Tablero, Casilla).
 
-/*
- jugador_tiene_prop(+PropId, +Jugador)
-  Verdadero si el jugador ya posee esa propiedad.
-  memberchk/2 es semidet y no deja choicepoints.
-*/
-jugador_tiene_prop(PropId, jugador(_, _, _, Props)) :-
-    memberchk(PropId, Props).
+% =====================================
+% ISSUE 6 – REGLA 0 (COMPRA DE PROPIEDAD)
+% =====================================
 
 /*
- propiedad_sin_dueno(+PropId, +Jugadores)
-  Verdadero si ningún jugador tiene PropId en su lista.
+Regla 0 (Compra):
+Si el jugador activo cae en una casilla propiedad(PropId, Precio, _),
+y la propiedad no tiene dueño,
+y el jugador tiene Dinero >= Precio,
+entonces:
+- se descuenta el Precio del dinero
+- se añade PropId a la lista de propiedades del jugador
+- se actualiza la lista de jugadores en el estado
+
+La regla es determinista y siempre tiene éxito:
+si no se compra, devuelve el mismo estado.
 */
-propiedad_sin_dueno(PropId, Jugadores) :-
-    \+ ( member(J, Jugadores),
-         jugador_tiene_prop(PropId, J)
-       ).
+
+/*
+ jugador_activo(+Estado, -Jugador)
+  Obtiene el jugador activo (según Turno).
+*/
+jugador_activo(estado(Js, _Tablero, Turno), Jugador) :-
+    nth0(Turno, Js, Jugador).
+
 
 /*
  regla_compra(+EstadoIn, -EstadoOut)
   Aplica la compra si procede. Si no procede, EstadoOut = EstadoIn.
-  Determinista y sin choicepoints innecesarios.
+  Determinista.
 */
 regla_compra(EstadoIn, EstadoOut) :-
     EstadoIn = estado(Js, Tablero, Turno),
-    nth0(Turno, Js, Jugador),
-    Jugador = jugador(Nombre, Pos, Din, Props),
-    nth0(Pos, Tablero, Casilla),
+    jugador_activo(EstadoIn, Jugador),
+    Jugador = jugador(Nombre, _Pos, Din, _Props),
+    casilla_actual(EstadoIn, Casilla),
 
     (   Casilla = propiedad(PropId, Precio, _),
         propiedad_sin_dueno(PropId, Js),
-        Din >= Precio,
-        \+ memberchk(PropId, Props)          % evita duplicados si cae en suya
+        Din >= Precio
     ->  Din2 is Din - Precio,
         update_dinero(Jugador, Din2, Jtmp),
         add_prop(Jtmp, PropId, Jugador2),
@@ -345,3 +345,348 @@ regla_compra(EstadoIn, EstadoOut) :-
     ;   EstadoOut = EstadoIn
     ),
     !.
+
+
+
+% =====================================
+% ISSUE 7 – REGLA 1 (ALQUILER)
+% =====================================
+
+/*
+Regla 1 (Alquiler):
+Si el jugador activo cae en una casilla propiedad(PropId, Precio, _)
+y la propiedad tiene dueño distinto del jugador actual,
+entonces:
+- se resta el alquiler al jugador actual
+- se suma el alquiler al propietario
+- se actualiza la lista de jugadores en el estado
+
+Cálculo:
+- alquiler = Precio // 10
+
+La regla es determinista y siempre tiene éxito:
+si no aplica, devuelve el mismo estado.
+*/
+
+/*
+ alquiler_casilla(+Casilla, -Alquiler)
+  Calcula el alquiler a partir del precio de la propiedad.
+*/
+alquiler_casilla(propiedad(_PropId, Precio, _), Alquiler) :-
+    Alquiler is Precio // 10.
+
+/*
+ regla_alquiler(+EstadoIn, -EstadoOut)
+  Aplica alquiler si procede. Si no procede, EstadoOut = EstadoIn.
+  Determinista.
+*/
+regla_alquiler(EstadoIn, EstadoOut) :-
+    EstadoIn = estado(Js, Tablero, Turno),
+    jugador_activo(EstadoIn, JugActual),
+    JugActual = jugador(NombreAct, _PosAct, DinAct, _PropsAct),
+    casilla_actual(EstadoIn, Casilla),
+
+    (   Casilla = propiedad(PropId, _Precio, _),
+        propietario_de(PropId, Js, NombreProp, JugProp),
+        NombreProp \= NombreAct,
+        alquiler_casilla(Casilla, Alq)
+    ->  % actualizar pagador
+        DinAct2 is DinAct - Alq,
+        update_dinero(JugActual, DinAct2, JugAct2),
+        set_jugador(NombreAct, Js, JugAct2, JsTmp),
+
+        % actualizar propietario
+        JugProp = jugador(NombreProp, _PosP, DinP, _PropsP),
+        DinP2 is DinP + Alq,
+        update_dinero(JugProp, DinP2, JugProp2),
+        set_jugador(NombreProp, JsTmp, JugProp2, Js2),
+
+        EstadoOut = estado(Js2, Tablero, Turno)
+    ;   EstadoOut = EstadoIn
+    ),
+    !.
+
+
+
+% =====================================
+% ISSUE 10 – REGLA 2 (MONOPOLIO)
+% =====================================
+
+/*
+Regla 2 (Monopolio):
+Si un jugador posee todas las propiedades de un mismo color,
+queda habilitado para construir casas en ese grupo de color.
+
+La habilitación se expone mediante predicados de consulta.
+regla_monopolio/2 no modifica el estado.
+*/
+
+/*
+ propiedades_color(+Tablero, +Color, -PropIds)
+  Devuelve la lista de identificadores de propiedades del color indicado.
+*/
+propiedades_color([], _Color, []).
+propiedades_color([propiedad(PropId, _Precio, Color) | Resto], Color, [PropId | PropsColor]) :-
+    propiedades_color(Resto, Color, PropsColor).
+propiedades_color([_ | Resto], Color, PropsColor) :-
+    propiedades_color(Resto, Color, PropsColor).
+
+/*
+ colores_tablero(+Tablero, -ColoresUnicos)
+  Devuelve la lista de colores presentes en el tablero (solo casillas propiedad/3),
+  sin duplicados.
+*/
+colores_tablero(Tablero, ColoresUnicos) :-
+    findall(Color,
+            member(propiedad(_, _, Color), Tablero),
+            ColoresDup),
+    sort(ColoresDup, ColoresUnicos).
+
+/*
+ tiene_todas(+Sublista, +Lista)
+  Verdadero si todos los elementos de Sublista pertenecen a Lista.
+*/
+tiene_todas([], _).
+tiene_todas([X | Xs], Lista) :-
+    memberchk(X, Lista),
+    tiene_todas(Xs, Lista).
+
+/*
+ monopolio_color(+Jugador, +Tablero, ?Color)
+  Verdadero si Jugador posee todas las propiedades del Color.
+  Exige que exista al menos una propiedad de ese color.
+*/
+monopolio_color(jugador(_Nombre, _Pos, _Din, Props), Tablero, Color) :-
+    colores_tablero(Tablero, Colores),
+    member(Color, Colores),
+    propiedades_color(Tablero, Color, PropsColor),
+    PropsColor \= [],
+    tiene_todas(PropsColor, Props).
+
+/*
+ colores_monopolio_jugador(+Jugador, +Tablero, -Colores)
+  Devuelve la lista de colores sobre los que el jugador tiene monopolio.
+*/
+colores_monopolio_jugador(Jugador, Tablero, Colores) :-
+    findall(Color,
+            monopolio_color(Jugador, Tablero, Color),
+            ColoresDup),
+    sort(ColoresDup, Colores).
+
+/*
+ jugador_activo_monopolios(+Estado, -Colores)
+  Devuelve los colores monopolizados por el jugador activo.
+*/
+jugador_activo_monopolios(estado(Js, Tablero, Turno), Colores) :-
+    nth0(Turno, Js, Jugador),
+    colores_monopolio_jugador(Jugador, Tablero, Colores).
+
+/*
+ regla_monopolio(+EstadoIn, -EstadoOut)
+  Regla no destructiva.
+*/
+regla_monopolio(Estado, Estado).
+
+
+
+% =====================================
+% ISSUE 11 – REGLA 3 (BANCARROTA)
+% =====================================
+
+/*
+Regla 3 (Bancarrota):
+Si un jugador tiene dinero negativo, se elimina de la lista global de jugadores.
+Sus propiedades desaparecen con él (vuelven implícitamente al banco).
+Se ajusta el índice de turno para mantener consistencia.
+
+La regla elimina iterativamente a todos los jugadores en bancarrota.
+*/
+
+/*
+ jugador_en_bancarrota(+Jugador)
+  Verdadero si el jugador tiene dinero negativo.
+*/
+jugador_en_bancarrota(jugador(_Nombre, _Pos, Dinero, _Props)) :-
+    Dinero < 0.
+
+/*
+ primer_bancarrota(+Jugadores, -Indice, -Jugador)
+  Obtiene el primer jugador de la lista con dinero negativo.
+*/
+primer_bancarrota([Jugador | _], 0, Jugador) :-
+    jugador_en_bancarrota(Jugador), !.
+primer_bancarrota([_ | Resto], Indice, Jugador) :-
+    primer_bancarrota(Resto, IndiceResto, Jugador),
+    Indice is IndiceResto + 1.
+
+/*
+ remove_nth0(+Indice, +Lista, -Elem, -ListaSinElem)
+  Elimina el elemento en posición Indice de una lista.
+*/
+remove_nth0(0, [X | Xs], X, Xs) :- !.
+remove_nth0(N, [X | Xs], Elem, [X | Ys]) :-
+    N > 0,
+    N1 is N - 1,
+    remove_nth0(N1, Xs, Elem, Ys).
+
+/*
+ ajustar_turno_tras_eliminacion(+TurnoActual, +IndiceEliminado, +NumJugadoresRestantes, -TurnoNuevo)
+  Ajusta el turno tras eliminar un jugador.
+*/
+ajustar_turno_tras_eliminacion(_TurnoActual, _IndiceEliminado, 0, 0) :- !.
+ajustar_turno_tras_eliminacion(TurnoActual, IndiceEliminado, NumRestantes, TurnoNuevo) :-
+    (   IndiceEliminado < TurnoActual
+    ->  TurnoTemp is TurnoActual - 1
+    ;   IndiceEliminado =:= TurnoActual
+    ->  TurnoTemp is TurnoActual mod NumRestantes
+    ;   TurnoTemp is TurnoActual
+    ),
+    TurnoNuevo is TurnoTemp mod NumRestantes.
+
+/*
+ eliminar_jugador_por_indice(+EstadoIn, +IndiceEliminado, -EstadoOut, -JugadorEliminado)
+  Elimina al jugador situado en IndiceEliminado y ajusta el turno.
+*/
+eliminar_jugador_por_indice(
+    estado(Js, Tablero, Turno),
+    IndiceEliminado,
+    estado(Js2, Tablero, Turno2),
+    JugadorEliminado
+) :-
+    remove_nth0(IndiceEliminado, Js, JugadorEliminado, Js2),
+    length(Js2, NumRestantes),
+    ajustar_turno_tras_eliminacion(Turno, IndiceEliminado, NumRestantes, Turno2).
+
+/*
+ aplicar_bancarrota_una_pasada(+EstadoIn, -EstadoOut)
+  Si existe al menos un jugador en bancarrota, elimina al primero encontrado.
+  Si no existe ninguno, devuelve el mismo estado.
+*/
+aplicar_bancarrota_una_pasada(EstadoIn, EstadoOut) :-
+    EstadoIn = estado(Js, _Tablero, _Turno),
+    (   primer_bancarrota(Js, Indice, _Jugador)
+    ->  eliminar_jugador_por_indice(EstadoIn, Indice, EstadoOut, _Eliminado)
+    ;   EstadoOut = EstadoIn
+    ).
+
+/*
+ regla_bancarrota(+EstadoIn, -EstadoOut)
+  Elimina iterativamente a todos los jugadores con dinero negativo.
+*/
+regla_bancarrota(EstadoIn, EstadoOut) :-
+    regla_bancarrota_aux(EstadoIn, EstadoOut),
+    !.
+
+regla_bancarrota_aux(EstadoActual, EstadoFinal) :-
+    aplicar_bancarrota_una_pasada(EstadoActual, EstadoSiguiente),
+    (   EstadoSiguiente == EstadoActual
+    ->  EstadoFinal = EstadoActual
+    ;   regla_bancarrota_aux(EstadoSiguiente, EstadoFinal)
+    ).
+
+
+
+% =====================================
+% ISSUE 8 – MOTOR ITERATIVO DE REGLAS
+% =====================================
+
+/*
+Motor iterativo de reglas:
+- aplicar_reglas_una_pasada/2 aplica las reglas en orden fijo.
+- aplicar_reglas_hasta_estable/4 repite pasadas hasta estabilidad o límite.
+- turno_con_reglas/3 integra movimiento + reglas + avance de turno.
+- simular_con_reglas/5 y simular_movimientos_con_reglas/3 simulan turnos reales.
+*/
+
+% Límite de seguridad para evitar iteraciones infinitas.
+max_iter_reglas(10).
+
+/*
+ aplicar_reglas_una_pasada(+EstadoIn, -EstadoOut)
+  Aplica una vez todas las reglas disponibles, en orden fijo.
+*/
+aplicar_reglas_una_pasada(EstadoIn, EstadoOut) :-
+    regla_compra(EstadoIn, E1),
+    regla_alquiler(E1, E2),
+    regla_monopolio(E2, E3),
+    regla_bancarrota(E3, EstadoOut).
+
+/*
+ aplicar_reglas_hasta_estable(+EstadoIn, +MaxIter, -EstadoOut, -IterUsadas)
+  Repite la aplicación de reglas hasta que:
+  - el estado deje de cambiar, o
+  - se alcance el límite MaxIter.
+*/
+aplicar_reglas_hasta_estable(EstadoIn, MaxIter, EstadoOut, IterUsadas) :-
+    integer(MaxIter),
+    MaxIter >= 0,
+    aplicar_reglas_hasta_estable_aux(EstadoIn, MaxIter, EstadoOut, 0, IterUsadas).
+
+aplicar_reglas_hasta_estable_aux(EstadoActual, 0, EstadoActual, Acum, Acum) :- !.
+aplicar_reglas_hasta_estable_aux(EstadoActual, MaxRestante, EstadoFinal, Acum, IterUsadas) :-
+    aplicar_reglas_una_pasada(EstadoActual, EstadoSiguiente),
+    (   EstadoSiguiente == EstadoActual
+    ->  EstadoFinal = EstadoActual,
+        IterUsadas = Acum
+    ;   Max1 is MaxRestante - 1,
+        Acum1 is Acum + 1,
+        aplicar_reglas_hasta_estable_aux(EstadoSiguiente, Max1, EstadoFinal, Acum1, IterUsadas)
+    ).
+
+/*
+ turno_con_reglas(+EstadoIn, +Tirada, -EstadoOut)
+  Ejecuta un turno completo del juego con reglas.
+*/
+turno_con_reglas(EstadoIn, Tirada, EstadoOut) :-
+    mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
+    max_iter_reglas(Max),
+    aplicar_reglas_hasta_estable(EstadoMov, Max, EstadoReglas, _IterUsadas),
+    EstadoReglas = estado(Js, _Tab, _Turno),
+    (   Js = []
+    ->  EstadoOut = EstadoReglas
+    ;   avanzar_turno(EstadoReglas, EstadoOut)
+    ).
+
+/*
+ simular_con_reglas(+EstadoIn, +Tiradas, +N, -EstadoOut, -TiradasRestantes)
+  Simula N turnos completos (con reglas) consumiendo N tiradas.
+*/
+simular_con_reglas(Estado, Tiradas, 0, Estado, Tiradas) :- !.
+simular_con_reglas(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
+    integer(N),
+    N > 0,
+    turno_con_reglas(EstadoIn, T, EstadoNext),
+    N1 is N - 1,
+    simular_con_reglas(EstadoNext, Ts, N1, EstadoOut, TiradasRestantes).
+
+/*
+ simular_movimientos_con_reglas(+EstadoIn, +ListaTiradas, -EstadoOut)
+  Wrapper que consume toda la lista de tiradas aplicando turnos completos con reglas.
+*/
+simular_movimientos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
+    length(ListaTiradas, N),
+    simular_con_reglas(EstadoIn, ListaTiradas, N, EstadoOut, []).
+
+
+
+% =====================================
+% ISSUE 9 – INTEGRACIÓN REGLAS + TURNO
+% =====================================
+
+/*
+Interfaz semántica del turno real y simulación completa.
+*/
+
+/*
+ ejecutar_turno(+EstadoIn, +Tirada, -EstadoOut)
+  Ejecuta un turno completo (alias del turno real).
+*/
+ejecutar_turno(EstadoIn, Tirada, EstadoOut) :-
+    turno_con_reglas(EstadoIn, Tirada, EstadoOut).
+
+/*
+ simular_turnos_con_reglas(+EstadoIn, +ListaTiradas, -EstadoOut)
+  Ejecuta tantos turnos completos como tiradas haya en la lista.
+*/
+simular_turnos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
+    simular_movimientos_con_reglas(EstadoIn, ListaTiradas, EstadoOut).
