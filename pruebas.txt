@@ -1,0 +1,11 @@
+ESCENARIO 1
+
+ejecutar_escenario(esc1, EstadoFinal).
+
+ESCENARIO 2
+
+ejecutar_escenario(esc1, EstadoFinal).
+
+ESCENARIO 3
+
+estado_inicial(esc1, E), mostrar_tablero(E).
