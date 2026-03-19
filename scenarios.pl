@@ -1,18 +1,14 @@
 % ============================================================
-% scenarios.pl — Escenarios reproducibles del proyecto
+% scenarios.pl — Escenarios reproducibles y validaciones manuales
 %
-% Ejecutar:
-%   ?- [scenarios].
-%   ?- ejecutar_escenario(esc1, EstadoFinal).
-%   ?- ejecutar_escenario(esc2, EstadoFinal).
-%
-% Este archivo contiene:
-% - Escenarios reproducibles del juego
-% - Helpers de impresión del estado
-% - Helpers de visualización de monopolios
+% Contenido:
+% - Escenarios del proyecto
+% - Impresión formateada del estado
+% - Visualización de monopolios
 % - Validaciones manuales del motor
 %
-% No añade lógica nueva del Monopoly: reutiliza main.pl.
+% Este archivo reutiliza la lógica definida en main.pl.
+% No añade reglas nuevas del juego.
 % ============================================================
 
 :- [main].
@@ -45,7 +41,7 @@ mostrar_jugadores([jugador(Nombre, Pos, Din, Props) | Resto]) :-
 
 /*
 mostrar_tablero(+Estado)
-Imprime el tablero completo una sola vez, si se desea inspeccionar.
+Imprime el tablero completo, solo cuando se quiera inspeccionar explícitamente.
 */
 mostrar_tablero(estado(_Jugadores, Tablero, _Turno)) :-
     writeln('Tablero:'),
@@ -65,10 +61,6 @@ mostrar_tablero_aux([Casilla | Resto], Indice) :-
 resumen_jugadores(estado(Js, _, _), Js).
 resumen_turno(estado(_, _, Turno), Turno).
 
-% ============================================================
-% DETECCIÓN DE MONOPOLIOS EN UN ESTADO
-% ============================================================
-
 /*
 mostrar_monopolios(+Estado)
 Imprime qué jugadores tienen monopolios y de qué colores.
@@ -83,6 +75,15 @@ mostrar_monopolios_jugadores([Jugador | Resto], Tablero) :-
     colores_monopolio_jugador(Jugador, Tablero, Colores),
     write('  '), write(Nombre), write(' -> '), writeln(Colores),
     mostrar_monopolios_jugadores(Resto, Tablero).
+
+/*
+mostrar_cabecera(+Titulo)
+Cabecera uniforme para escenarios y validaciones.
+*/
+mostrar_cabecera(Titulo) :-
+    writeln('================================'),
+    writeln(Titulo),
+    writeln('================================').
 
 % ============================================================
 % ESCENARIO 1 — COMPRAS INICIALES
@@ -119,9 +120,9 @@ tiradas_escenario(esc1, [1,3,5,5]).
 
 /*
 Escenario 2:
-- ana ya posee el monopolio marrón
-- sirve para verificar la Regla 2 (Monopolio)
-- el motor iterativo no debe entrar en bucle
+- Ana ya posee el monopolio marrón
+- Sirve para verificar la Regla 2 (Monopolio)
+- El motor iterativo no debe entrar en bucle
 */
 
 estado_inicial(esc2,
@@ -150,8 +151,8 @@ Ejecuta cualquier escenario definido mediante:
 
 Muestra:
 - estado inicial
-- tiradas
 - monopolios iniciales
+- tiradas
 - estado final
 - monopolios finales
 */
@@ -159,36 +160,31 @@ ejecutar_escenario(IdEscenario, EstadoFinal) :-
     estado_inicial(IdEscenario, EstadoInicial),
     tiradas_escenario(IdEscenario, Tiradas),
 
-    writeln('================================'),
-    write('ESCENARIO: '), writeln(IdEscenario),
-    writeln('================================'),
-    nl,
+    atomic_list_concat(['ESCENARIO: ', IdEscenario], Titulo),
+    mostrar_cabecera(Titulo), nl,
 
     writeln('ESTADO INICIAL'),
     writeln('--------------------------------'),
-    mostrar_estado(EstadoInicial),
-    nl,
+    mostrar_estado(EstadoInicial), nl,
 
     writeln('MONOPOLIOS INICIALES'),
     writeln('--------------------------------'),
-    mostrar_monopolios(EstadoInicial),
-    nl,
+    mostrar_monopolios(EstadoInicial), nl,
 
     writeln('TIRADAS DEL ESCENARIO'),
     writeln('--------------------------------'),
-    writeln(Tiradas),
-    nl,
+    writeln(Tiradas), nl,
 
     simular_turnos_con_reglas(EstadoInicial, Tiradas, EstadoFinal),
 
     writeln('ESTADO FINAL'),
     writeln('--------------------------------'),
-    mostrar_estado(EstadoFinal),
-    nl,
+    mostrar_estado(EstadoFinal), nl,
 
     writeln('MONOPOLIOS FINALES'),
     writeln('--------------------------------'),
     mostrar_monopolios(EstadoFinal),
+
     writeln('================================').
 
 % ============================================================
@@ -196,54 +192,61 @@ ejecutar_escenario(IdEscenario, EstadoFinal) :-
 % ============================================================
 
 /*
+validar_mover_basico/0
 Comprueba mover/4 sin cruce de salida.
-Debe cambiar posición del jugador activo, pero NO el turno.
+Debe cambiar posición del jugador activo, pero no el turno.
 */
 validar_mover_basico :-
     estado_inicial(E0),
-    writeln('=============================='),
-    writeln('VALIDACION: mover/4 basico'),
-    writeln('=============================='),
+    mostrar_cabecera('VALIDACION: mover/4 basico'), nl,
+
     writeln('Estado inicial:'),
     mostrar_estado(E0), nl,
+
     mover(E0, 7, E1, Paso),
+
     writeln('Tras mover con tirada 7:'),
     mostrar_estado(E1),
     write('Paso por salida: '), writeln(Paso),
-    writeln('==============================').
+    writeln('================================').
 
 /*
+validar_turno_base/0
 Comprueba turno_base/3.
-Debe cambiar posición del jugador activo Y avanzar el turno.
+Debe cambiar posición del jugador activo y avanzar el turno.
 */
 validar_turno_base :-
     estado_inicial(E0),
-    writeln('=============================='),
-    writeln('VALIDACION: turno_base/3'),
-    writeln('=============================='),
+    mostrar_cabecera('VALIDACION: turno_base/3'), nl,
+
     writeln('Estado inicial:'),
     mostrar_estado(E0), nl,
+
     turno_base(E0, 7, E1),
+
     writeln('Tras turno_base con tirada 7:'),
     mostrar_estado(E1),
-    writeln('==============================').
+    writeln('================================').
 
 /*
+validar_modulo_y_salida/0
 Comprueba modulo 40 y bonus de salida.
-Se coloca a ana en la casilla 39 y se mueve 2 posiciones.
+Se coloca a Ana en la casilla 39 y se mueve 2 posiciones.
 Debe terminar en la casilla 1 y cobrar bonus de salida.
 */
 validar_modulo_y_salida :-
     estado_inicial(estado(Js, Tab, 0)),
     set_jugador(ana, Js, jugador(ana, 39, 1500, []), Js2),
     E0 = estado(Js2, Tab, 0),
-    writeln('=============================='),
-    writeln('VALIDACION: modulo 40 + bonus salida'),
-    writeln('=============================='),
+
+    mostrar_cabecera('VALIDACION: modulo 40 + bonus salida'), nl,
+
     writeln('Estado inicial modificado:'),
     mostrar_estado(E0), nl,
+
     mover(E0, 2, E1, Paso),
+
     writeln('Tras mover con tirada 2:'),
     mostrar_estado(E1),
     write('Paso por salida: '), writeln(Paso),
-    writeln('==============================').
+    writeln('================================').

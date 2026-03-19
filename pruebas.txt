@@ -4,8 +4,28 @@ ejecutar_escenario(esc1, EstadoFinal).
 
 ESCENARIO 2
 
-ejecutar_escenario(esc1, EstadoFinal).
+ejecutar_escenario(esc2, EstadoFinal).
 
-ESCENARIO 3
+jugadores estado EstadoFinal
 
-estado_inicial(esc1, E), mostrar_tablero(E).
+ejecutar_escenario(esc1, EstadoFinal),
+   resumen_jugadores(EstadoFinal, Jugadores).
+
+ver turno final del ESCENARIO
+
+ejecutar_escenario(esc1, EstadoFinal),
+   resumen_turno(EstadoFinal, Turno).
+
+TABLERO COMPLETO
+estado_inicial(esc1, Estado),
+mostrar_tablero(Estado).
+
+VALIDAR MOVER/4
+validar_mover_basico.
+
+VALIDAR TURNO BASE
+validar_turno_base.
+
+Validar módulo 40 y bonus de salida
+validar_modulo_y_salida.
+
