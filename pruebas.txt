@@ -1,12 +1,12 @@
-ESCENARIO 1
+ESCENARIO 1 -- COMPRAS INICIALES
 
 ejecutar_escenario(esc1, EstadoFinal).
 
-ESCENARIO 2
+ESCENARIO 2 -- MONOPOLIOS
 
 ejecutar_escenario(esc2, EstadoFinal).
 
-jugadores estado EstadoFinal
+JUGADORES ESTADO FINAL
 
 ejecutar_escenario(esc1, EstadoFinal),
    resumen_jugadores(EstadoFinal, Jugadores).

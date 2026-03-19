@@ -427,6 +427,7 @@ regla_monopolio/2 no modifica el estado.
 */
 propiedades_color([], _Color, []).
 propiedades_color([propiedad(PropId, _Precio, Color) | Resto], Color, [PropId | PropsColor]) :-
+    !,
     propiedades_color(Resto, Color, PropsColor).
 propiedades_color([_ | Resto], Color, PropsColor) :-
     propiedades_color(Resto, Color, PropsColor).
