@@ -250,3 +250,131 @@ validar_modulo_y_salida :-
     mostrar_estado(E1),
     write('Paso por salida: '), writeln(Paso),
     writeln('================================').
+
+% ============================================================
+% ESCENARIO 3 — BANCARROTA CONTROLADA POR ALQUILER
+% ============================================================
+
+/*
+Escenario 3:
+- Ana empieza con dinero muy bajo
+- Bob ya es dueño de marron1
+- Ana cae en marron1 y debe pagar alquiler
+- El pago la deja con dinero negativo
+- Se activa la Regla 3 (Bancarrota) y Ana es eliminada
+
+Detalle:
+- alquiler(marron1) = 60 // 10 = 6
+- Ana empieza con 5
+- Tras pagar 6 -> queda con -1
+*/
+
+estado_inicial(esc3,
+    estado(
+        [ jugador(ana, 0, 5, []),
+          jugador(bob, 0, 1500, [marron1])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc3, [1]).
+
+
+
+% ============================================================
+% ESCENARIO 4 — ALQUILERES CONSECUTIVOS
+% ============================================================
+
+/*
+Escenario 4:
+- 2 jugadores
+- varias propiedades ya tienen dueño
+- las tiradas fuerzan varios alquileres consecutivos
+
+Diseño:
+- Bob posee marron1 y celeste1
+- Ana posee marron2 y celeste2
+- Secuencia de tiradas:
+    Ana: 1  -> cae en marron1 (de Bob)     -> paga alquiler
+    Bob: 3  -> cae en marron2 (de Ana)     -> paga alquiler
+    Ana: 5  -> cae en celeste1 (de Bob)    -> paga alquiler
+    Bob: 5  -> cae en celeste2 (de Ana)    -> paga alquiler
+
+Alquileres esperados:
+- marron1: 60 // 10 = 6
+- marron2: 60 // 10 = 6
+- celeste1: 100 // 10 = 10
+- celeste2: 100 // 10 = 10
+
+Resultado esperado:
+- Se producen 4 alquileres consecutivos
+- Las transferencias son coherentes
+- Ambos jugadores acaban con el mismo dinero con el que empezaron
+*/
+
+estado_inicial(esc4,
+    estado(
+        [ jugador(ana, 0, 1340, [celeste2, marron2]),
+          jugador(bob, 0, 1340, [celeste1, marron1])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc4, [1,3,5,5]).
+
+/*
+validar_alquileres_esc4/0
+Ejecuta el escenario 4 y permite comprobar visualmente que:
+- se encadenan varios alquileres
+- las posiciones finales son correctas
+- el dinero final es consistente
+*/
+validar_alquileres_esc4 :-
+    mostrar_cabecera('VALIDACION: alquileres consecutivos en esc4'), nl,
+
+    estado_inicial(esc4, E0),
+    tiradas_escenario(esc4, Tiradas),
+
+    writeln('Estado inicial:'),
+    mostrar_estado(E0), nl,
+
+    writeln('Tiradas:'),
+    writeln(Tiradas), nl,
+
+    simular_turnos_con_reglas(E0, Tiradas, EFinal),
+
+    writeln('Estado final:'),
+    mostrar_estado(EFinal), nl,
+
+    writeln('Monopolios finales:'),
+    mostrar_monopolios(EFinal), nl,
+
+    writeln('Comprobacion esperada:'),
+    writeln('  - Ana termina en posicion 6'),
+    writeln('  - Bob termina en posicion 8'),
+    writeln('  - Ambos terminan con 1340'),
+    writeln('================================').
+
+
+/*
+validar_alquileres_esc4_ok/0
+Valida exactamente el estado final esperado del escenario 4.
+*/
+validar_alquileres_esc4_ok :-
+    estado_inicial(esc4, E0),
+    tiradas_escenario(esc4, Tiradas),
+    simular_turnos_con_reglas(E0, Tiradas, EFinal),
+
+    EFinal = estado(
+        [ jugador(ana, 6, 1340, [celeste2, marron2]),
+          jugador(bob, 8, 1340, [celeste1, marron1])
+        ],
+        _Tablero,
+        0
+    ).

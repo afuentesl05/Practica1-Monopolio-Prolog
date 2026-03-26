@@ -29,3 +29,13 @@ validar_turno_base.
 Validar módulo 40 y bonus de salida
 validar_modulo_y_salida.
 
+ESCENARIO 3 -- BANCARROTA
+
+ejecutar_escenario(esc3, EstadoFinal).
+
+ESCENARIO 4 -- ALQUILERES CONSECUTIVOS
+
+ejecutar_escenario(esc4, EstadoFinal).
+validar_alquileres_esc4.
+validar_alquileres_esc4_ok.
+
