@@ -77,6 +77,19 @@ mostrar_monopolios_jugadores([Jugador | Resto], Tablero) :-
     mostrar_monopolios_jugadores(Resto, Tablero).
 
 /*
+mostrar_metricas(+Metricas)
+Imprime métricas acumuladas de la simulación.
+*/
+mostrar_metricas(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas)) :-
+    reverse(IterRev, IterPorTurno),
+    writeln('Metricas:'),
+    write('  Iteraciones por turno: '), writeln(IterPorTurno),
+    write('  Iteraciones totales: '), writeln(IterTotal),
+    write('  Compras: '), writeln(Compras),
+    write('  Alquileres: '), writeln(Alquileres),
+    write('  Bancarrotas/eliminaciones: '), writeln(Bancarrotas).
+
+/*
 mostrar_cabecera(+Titulo)
 Cabecera uniforme para escenarios y validaciones.
 */
@@ -175,7 +188,7 @@ ejecutar_escenario(IdEscenario, EstadoFinal) :-
     writeln('--------------------------------'),
     writeln(Tiradas), nl,
 
-    simular_turnos_con_reglas(EstadoInicial, Tiradas, EstadoFinal),
+    simular_turnos_con_reglas_metricas(EstadoInicial, Tiradas, EstadoFinal, Metricas),
 
     writeln('ESTADO FINAL'),
     writeln('--------------------------------'),
@@ -183,7 +196,11 @@ ejecutar_escenario(IdEscenario, EstadoFinal) :-
 
     writeln('MONOPOLIOS FINALES'),
     writeln('--------------------------------'),
-    mostrar_monopolios(EstadoFinal),
+    mostrar_monopolios(EstadoFinal), nl,
+
+    writeln('METRICAS'),
+    writeln('--------------------------------'),
+    mostrar_metricas(Metricas),
 
     writeln('================================').
 
@@ -378,3 +395,112 @@ validar_alquileres_esc4_ok :-
         _Tablero,
         0
     ).
+
+
+validar_metricas_esc4 :-
+    mostrar_cabecera('VALIDACION: metricas en esc4'), nl,
+    estado_inicial(esc4, E0),
+    tiradas_escenario(esc4, Tiradas),
+    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, Metricas),
+
+    writeln('Estado final:'),
+    mostrar_estado(EFinal), nl,
+
+    writeln('Metricas obtenidas:'),
+    mostrar_metricas(Metricas),
+    writeln('================================').
+
+% ============================================================
+% ESCENARIO 5 — SIMULACIÓN COMPLETA DE 10 TURNOS
+% ============================================================
+
+/*
+Escenario 5:
+- 2 jugadores desde estado inicial normal
+- 10 turnos consecutivos
+- integra:
+    * movimiento
+    * compras
+    * alquileres
+    * motor iterativo de reglas
+    * sistema de turnos
+    * métricas
+
+Secuencia de tiradas:
+1) Ana: 1  -> marron1  -> compra
+2) Bob: 3  -> marron2  -> compra
+3) Ana: 5  -> celeste1 -> compra
+4) Bob: 5  -> celeste2 -> compra
+5) Ana: 2  -> celeste2 -> alquiler a Bob
+6) Bob: 1  -> celeste3 -> compra
+7) Ana: 1  -> celeste3 -> alquiler a Bob
+8) Bob: 3  -> servicio1 -> sin efecto
+9) Ana: 3  -> servicio1 -> sin efecto
+10) Bob: 4 -> naranja1 -> compra
+*/
+
+estado_inicial(esc5,
+    estado(
+        [ jugador(ana, 0, 1500, []),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc5, [1,3,5,5,2,1,1,3,3,4]).
+
+/*
+validar_esc5/0
+Ejecuta el escenario 5 mostrando estado final y métricas.
+*/
+validar_esc5 :-
+    mostrar_cabecera('VALIDACION: esc5 (10 turnos completos)'), nl,
+
+    estado_inicial(esc5, E0),
+    tiradas_escenario(esc5, Tiradas),
+
+    writeln('Estado inicial:'),
+    mostrar_estado(E0), nl,
+
+    writeln('Tiradas:'),
+    writeln(Tiradas), nl,
+
+    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, Metricas),
+
+    writeln('Estado final:'),
+    mostrar_estado(EFinal), nl,
+
+    writeln('Monopolios finales:'),
+    mostrar_monopolios(EFinal), nl,
+
+    writeln('Metricas finales:'),
+    mostrar_metricas(Metricas),
+    writeln('================================').
+
+
+/*
+validar_esc5_ok/0
+Valida exactamente el estado final y las métricas esperadas del escenario 5.
+
+Nota:
+- add_prop/3 añade al principio de la lista, por eso las propiedades
+  aparecen en orden inverso al de adquisición.
+*/
+validar_esc5_ok :-
+    estado_inicial(esc5, E0),
+    tiradas_escenario(esc5, Tiradas),
+    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, Metricas),
+
+    EFinal = estado(
+        [ jugador(ana, 12, 1318, [celeste1, marron1]),
+          jugador(bob, 16, 1062, [naranja1, celeste3, celeste2, marron2])
+        ],
+        _Tablero,
+        0
+    ),
+
+    Metricas = metricas(IterRev, 10, 6, 2, 0),
+    reverse(IterRev, [1,1,1,1,1,1,1,1,1,1]).

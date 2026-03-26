@@ -586,6 +586,24 @@ regla_bancarrota_aux(EstadoActual, EstadoFinal) :-
     ).
 
 
+/*
+ resolver_evento_casilla(+EstadoIn, -EstadoOut)
+  Aplica una sola vez el efecto principal de la casilla actual:
+  - compra si procede
+  - en caso contrario, alquiler si procede
+  - si no aplica nada, deja el estado igual
+
+  Importante:
+  compra y alquiler NO deben entrar en el motor iterativo,
+  porque no son reglas de cierre y podrían reaplicarse indefinidamente.
+*/
+resolver_evento_casilla(EstadoIn, EstadoOut) :-
+    regla_compra(EstadoIn, E1),
+    (   E1 == EstadoIn
+    ->  regla_alquiler(EstadoIn, EstadoOut)
+    ;   EstadoOut = E1
+    ).
+
 
 % =====================================
 % ISSUE 8 – MOTOR ITERATIVO DE REGLAS
@@ -606,11 +624,16 @@ max_iter_reglas(10).
  aplicar_reglas_una_pasada(+EstadoIn, -EstadoOut)
   Aplica una vez todas las reglas disponibles, en orden fijo.
 */
+/*
 aplicar_reglas_una_pasada(EstadoIn, EstadoOut) :-
     regla_compra(EstadoIn, E1),
     regla_alquiler(E1, E2),
     regla_monopolio(E2, E3),
-    regla_bancarrota(E3, EstadoOut).
+    regla_bancarrota(E3, EstadoOut).*/
+
+aplicar_reglas_una_pasada(EstadoIn, EstadoOut) :-
+    regla_monopolio(EstadoIn, E1),
+    regla_bancarrota(E1, EstadoOut).
 
 /*
  aplicar_reglas_hasta_estable(+EstadoIn, +MaxIter, -EstadoOut, -IterUsadas)
@@ -638,10 +661,23 @@ aplicar_reglas_hasta_estable_aux(EstadoActual, MaxRestante, EstadoFinal, Acum, I
  turno_con_reglas(+EstadoIn, +Tirada, -EstadoOut)
   Ejecuta un turno completo del juego con reglas.
 */
+
+/*
 turno_con_reglas(EstadoIn, Tirada, EstadoOut) :-
     mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
     max_iter_reglas(Max),
     aplicar_reglas_hasta_estable(EstadoMov, Max, EstadoReglas, _IterUsadas),
+    EstadoReglas = estado(Js, _Tab, _Turno),
+    (   Js = []
+    ->  EstadoOut = EstadoReglas
+    ;   avanzar_turno(EstadoReglas, EstadoOut)
+    ).
+*/
+turno_con_reglas(EstadoIn, Tirada, EstadoOut) :-
+    mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
+    resolver_evento_casilla(EstadoMov, EstadoEvento),
+    max_iter_reglas(Max),
+    aplicar_reglas_hasta_estable(EstadoEvento, Max, EstadoReglas, _IterUsadas),
     EstadoReglas = estado(Js, _Tab, _Turno),
     (   Js = []
     ->  EstadoOut = EstadoReglas
@@ -691,3 +727,188 @@ ejecutar_turno(EstadoIn, Tirada, EstadoOut) :-
 */
 simular_turnos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
     simular_movimientos_con_reglas(EstadoIn, ListaTiradas, EstadoOut).
+
+% =====================================
+% ISSUE 17 – MEJORA 1: ITERACIÓN + MÉTRICAS
+% =====================================
+
+/*
+Métricas del motor.
+
+Representación:
+- metricas(IterPorTurnoRev, IterTotal, Compras, Alquileres, Bancarrotas)
+
+Donde:
+- IterPorTurnoRev almacena, en orden inverso, cuántas pasadas del motor
+  de reglas se ejecutaron en cada turno (se guarda al revés por eficiencia O(1)).
+- IterTotal es la suma total de iteraciones/pasadas del motor.
+- Compras cuenta cuántas compras se ejecutaron realmente.
+- Alquileres cuenta cuántos alquileres se ejecutaron realmente.
+- Bancarrotas cuenta cuántos jugadores fueron eliminados.
+*/
+
+metricas_init(metricas([], 0, 0, 0, 0)).
+
+metricas_inc_compras(
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    metricas(IterRev, IterTotal, Compras2, Alquileres, Bancarrotas)
+) :-
+    Compras2 is Compras + 1.
+
+metricas_inc_alquileres(
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    metricas(IterRev, IterTotal, Compras, Alquileres2, Bancarrotas)
+) :-
+    Alquileres2 is Alquileres + 1.
+
+metricas_inc_bancarrotas_n(
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    N,
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas2)
+) :-
+    Bancarrotas2 is Bancarrotas + N.
+
+metricas_registrar_iter_turno(
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    IterTurno,
+    metricas([IterTurno | IterRev], IterTotal2, Compras, Alquileres, Bancarrotas)
+) :-
+    IterTotal2 is IterTotal + IterTurno.
+
+
+/*
+Wrappers instrumentados de reglas.
+No sustituyen a las reglas existentes; simplemente las reutilizan y
+actualizan métricas si realmente hubo cambio.
+*/
+
+regla_compra_metricas(EstadoIn, M0, EstadoOut, M1) :-
+    regla_compra(EstadoIn, EstadoOut),
+    (   EstadoOut == EstadoIn
+    ->  M1 = M0
+    ;   metricas_inc_compras(M0, M1)
+    ).
+
+regla_alquiler_metricas(EstadoIn, M0, EstadoOut, M1) :-
+    regla_alquiler(EstadoIn, EstadoOut),
+    (   EstadoOut == EstadoIn
+    ->  M1 = M0
+    ;   metricas_inc_alquileres(M0, M1)
+    ).
+
+regla_monopolio_metricas(EstadoIn, M, EstadoOut, M) :-
+    regla_monopolio(EstadoIn, EstadoOut).
+
+regla_bancarrota_metricas(EstadoIn, M0, EstadoOut, M1) :-
+    regla_bancarrota(EstadoIn, EstadoOut),
+    EstadoIn = estado(Js0, _Tab0, _Turno0),
+    EstadoOut = estado(Js1, _Tab1, _Turno1),
+    length(Js0, N0),
+    length(Js1, N1),
+    Eliminados is N0 - N1,
+    metricas_inc_bancarrotas_n(M0, Eliminados, M1).
+
+
+/*
+Una pasada del motor de reglas con métricas.
+*/
+/*
+aplicar_reglas_una_pasada_metricas(EstadoIn, M0, EstadoOut, MOut) :-
+    regla_compra_metricas(EstadoIn, M0, E1, M1),
+    regla_alquiler_metricas(E1, M1, E2, M2),
+    regla_monopolio_metricas(E2, M2, E3, M3),
+    regla_bancarrota_metricas(E3, M3, EstadoOut, MOut).
+*/
+
+aplicar_reglas_una_pasada_metricas(EstadoIn, M0, EstadoOut, MOut) :-
+    regla_monopolio_metricas(EstadoIn, M0, E1, M1),
+    regla_bancarrota_metricas(E1, M1, EstadoOut, MOut).
+
+
+/*
+aplicar_reglas_hasta_estable_metricas(+EstadoIn, +MaxIter, -EstadoOut, -IterUsadas, +M0, -MOut)
+
+- Repite pasadas del motor hasta estabilidad o hasta agotar el límite.
+- IterUsadas cuenta cuántas pasadas se ejecutaron realmente en ese turno.
+*/
+aplicar_reglas_hasta_estable_metricas(EstadoIn, MaxIter, EstadoOut, IterUsadas, M0, MOut) :-
+    integer(MaxIter),
+    MaxIter >= 0,
+    aplicar_reglas_hasta_estable_metricas_aux(EstadoIn, MaxIter, EstadoOut, 0, IterUsadas, M0, MOut).
+
+aplicar_reglas_hasta_estable_metricas_aux(EstadoActual, 0, EstadoActual, Acum, Acum, M, M) :- !.
+aplicar_reglas_hasta_estable_metricas_aux(EstadoActual, MaxRestante, EstadoFinal, Acum, IterUsadas, M0, MOut) :-
+    aplicar_reglas_una_pasada_metricas(EstadoActual, M0, EstadoSiguiente, M1),
+    Acum1 is Acum + 1,
+    (   EstadoSiguiente == EstadoActual
+    ->  EstadoFinal = EstadoActual,
+        IterUsadas = Acum1,
+        MOut = M1
+    ;   Max1 is MaxRestante - 1,
+        aplicar_reglas_hasta_estable_metricas_aux(EstadoSiguiente, Max1, EstadoFinal, Acum1, IterUsadas, M1, MOut)
+    ).
+
+
+/*
+turno_con_reglas_metricas(+EstadoIn, +Tirada, +M0, -EstadoOut, -MOut)
+
+Turno real con instrumentación:
+1) mover
+2) aplicar reglas hasta estable
+3) registrar iteraciones del turno
+4) avanzar turno (si quedan jugadores)
+*/
+/*
+turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
+    mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
+    max_iter_reglas(Max),
+    aplicar_reglas_hasta_estable_metricas(EstadoMov, Max, EstadoReglas, IterTurno, M0, M1),
+    metricas_registrar_iter_turno(M1, IterTurno, M2),
+    EstadoReglas = estado(Js, _Tab, _Turno),
+    (   Js = []
+    ->  EstadoOut = EstadoReglas
+    ;   avanzar_turno(EstadoReglas, EstadoOut)
+    ),
+    MOut = M2.
+*/
+
+turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
+    mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
+    resolver_evento_casilla_metricas(EstadoMov, M0, EstadoEvento, M1),
+    max_iter_reglas(Max),
+    aplicar_reglas_hasta_estable_metricas(EstadoEvento, Max, EstadoReglas, IterTurno, M1, M2),
+    metricas_registrar_iter_turno(M2, IterTurno, M3),
+    EstadoReglas = estado(Js, _Tab, _Turno),
+    (   Js = []
+    ->  EstadoOut = EstadoReglas
+    ;   avanzar_turno(EstadoReglas, EstadoOut)
+    ),
+    MOut = M3.
+
+
+/*
+Simulación completa con métricas.
+*/
+
+simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, MetricasOut) :-
+    metricas_init(M0),
+    simular_turnos_con_reglas_metricas_aux(EstadoIn, ListaTiradas, EstadoOut, M0, MetricasOut).
+
+simular_turnos_con_reglas_metricas_aux(Estado, [], Estado, M, M) :- !.
+simular_turnos_con_reglas_metricas_aux(EstadoIn, [T | Ts], EstadoOut, M0, MOut) :-
+    turno_con_reglas_metricas(EstadoIn, T, M0, EstadoNext, M1),
+    simular_turnos_con_reglas_metricas_aux(EstadoNext, Ts, EstadoOut, M1, MOut).
+
+resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, MOut) :-
+    regla_compra(EstadoIn, E1),
+    (   E1 == EstadoIn
+    ->  regla_alquiler(EstadoIn, E2),
+        (   E2 == EstadoIn
+        ->  EstadoOut = EstadoIn,
+            MOut = M0
+        ;   EstadoOut = E2,
+            metricas_inc_alquileres(M0, MOut)
+        )
+    ;   EstadoOut = E1,
+        metricas_inc_compras(M0, MOut)
+    ).

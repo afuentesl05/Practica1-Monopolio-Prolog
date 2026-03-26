@@ -39,3 +39,14 @@ ejecutar_escenario(esc4, EstadoFinal).
 validar_alquileres_esc4.
 validar_alquileres_esc4_ok.
 
+MTERICAS
+
+ejecutar_escenario(esc4, EstadoFinal).
+validar_metricas_esc4_ok.
+
+
+ESCENARIO 5
+
+ejecutar_escenario(esc5, EstadoFinal).
+validar_esc5.
+validar_esc5_ok.
