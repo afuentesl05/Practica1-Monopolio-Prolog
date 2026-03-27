@@ -201,6 +201,51 @@ cerrar_turno(EstadoReglas, _NombreActivo, _RepiteTurno, EstadoOut) :-
     avanzar_turno(EstadoReglas, EstadoOut).
 
 
+actualizar_estado_turno_activo(
+    estado(Js, Tablero, Turno),
+    NuevoEstadoTurno,
+    estado(Js2, Tablero, Turno)
+) :-
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno),
+    update_estado_turno(Jugador, NuevoEstadoTurno, Jugador2),
+    set_jugador(Nombre, Js, Jugador2, Js2).
+
+decrementar_carcel_activo(
+    estado(Js, Tablero, Turno),
+    estado(Js2, Tablero, Turno)
+) :-
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props,
+                   estado_turno(carcel(Turnos), Dobles)),
+    Turnos > 0,
+    Turnos1 is Turnos - 1,
+    update_estado_turno(Jugador, estado_turno(carcel(Turnos1), Dobles), Jugador2),
+    set_jugador(Nombre, Js, Jugador2, Js2).
+
+liberar_activo(
+    estado(Js, Tablero, Turno),
+    estado(Js2, Tablero, Turno)
+) :-
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno),
+    liberar_jugador(Jugador, Jugador2),
+    set_jugador(Nombre, Js, Jugador2, Js2).
+
+cobrar_a_activo(
+    estado(Js, Tablero, Turno),
+    Cantidad,
+    estado(Js2, Tablero, Turno)
+) :-
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, Din, _Props, _EstadoTurno),
+    Din2 is Din - Cantidad,
+    update_dinero(Jugador, Din2, Jugador2),
+    set_jugador(Nombre, Js, Jugador2, Js2).
+
+coste_salida_carcel(50).
+
+
 % =====================================
 % ISSUE 2 – UTILIDADES DE ACTUALIZACIÓN
 % =====================================
@@ -700,12 +745,26 @@ aplicar_reglas_hasta_estable_metricas_aux(EstadoActual, MaxRestante, EstadoFinal
 resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, MOut) :-
     regla_compra_metricas(EstadoIn, M0, E1, M1),
     (   E1 == EstadoIn
-    ->  regla_alquiler_metricas(EstadoIn, M1, EstadoOut, MOut)
+    ->  regla_alquiler_metricas(EstadoIn, M1, E2, M2),
+        (   E2 == EstadoIn
+        ->  resolver_evento_especial_metricas(EstadoIn, M2, EstadoOut, MOut)
+        ;   EstadoOut = E2,
+            MOut = M2
+        )
     ;   EstadoOut = E1,
         MOut = M1
     ).
 
-turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
+resolver_evento_especial_metricas(EstadoIn, M, EstadoOut, M) :-
+    casilla_actual(EstadoIn, Casilla),
+    (   Casilla = especial(ir_carcel)
+    ->  enviar_activo_a_carcel(EstadoIn, 3, EstadoOut)
+    ;   EstadoOut = EstadoIn
+    ).
+
+
+
+turno_normal_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     jugador_activo(EstadoIn, JugadorActivo),
     jugador_campos(JugadorActivo, NombreAct, _Pos, _Din, _Props, _EstadoTurno),
 
@@ -734,6 +793,51 @@ turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
         metricas_registrar_iter_turno(M2, IterTurno, M3),
         cerrar_turno(EstadoReglas, NombreAct, no, EstadoOut),
         MOut = M3
+    ).
+
+turno_encarcelado_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
+    jugador_activo(EstadoIn, JugadorActivo),
+    jugador_campos(JugadorActivo, NombreAct, _Pos, _Din, _Props,
+                   estado_turno(carcel(TurnosRestantes), _Dobles)),
+
+    (   es_doble(Tirada)
+    ->  % Sale por doble, mueve y termina turno sin repetir
+        liberar_activo(EstadoIn, EstadoLibre),
+        mover(EstadoLibre, Tirada, EstadoMov, _PasoSalida),
+        resolver_evento_casilla_metricas(EstadoMov, M0, EstadoEvento, M1),
+        actualizar_dobles_activo_compatible(EstadoEvento, 0, EstadoPrep),
+        max_iter_reglas(Max),
+        aplicar_reglas_hasta_estable_metricas(EstadoPrep, Max, EstadoReglas, IterTurno, M1, M2),
+        metricas_registrar_iter_turno(M2, IterTurno, M3),
+        cerrar_turno(EstadoReglas, NombreAct, no, EstadoOut),
+        MOut = M3
+
+    ;   TurnosRestantes > 1
+    ->  % No sale, consume intento y pasa turno
+        decrementar_carcel_activo(EstadoIn, EstadoCarcel2),
+        metricas_registrar_iter_turno(M0, 0, M1),
+        cerrar_turno(EstadoCarcel2, NombreAct, no, EstadoOut),
+        MOut = M1
+
+    ;   % Tercer intento fallido: paga, sale, mueve y termina turno
+        coste_salida_carcel(Coste),
+        cobrar_a_activo(EstadoIn, Coste, EstadoPagado),
+        liberar_activo(EstadoPagado, EstadoLibre),
+        mover(EstadoLibre, Tirada, EstadoMov, _PasoSalida),
+        resolver_evento_casilla_metricas(EstadoMov, M0, EstadoEvento, M1),
+        actualizar_dobles_activo_compatible(EstadoEvento, 0, EstadoPrep),
+        max_iter_reglas(Max),
+        aplicar_reglas_hasta_estable_metricas(EstadoPrep, Max, EstadoReglas, IterTurno, M1, M2),
+        metricas_registrar_iter_turno(M2, IterTurno, M3),
+        cerrar_turno(EstadoReglas, NombreAct, no, EstadoOut),
+        MOut = M3
+    ).
+    
+turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
+    jugador_activo(EstadoIn, JugadorActivo),
+    (   jugador_en_carcel(JugadorActivo, _TurnosRestantes)
+    ->  turno_encarcelado_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut)
+    ;   turno_normal_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut)
     ).
 
 simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, MetricasOut) :-
