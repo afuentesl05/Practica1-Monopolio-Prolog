@@ -50,3 +50,5 @@ ESCENARIO 5
 ejecutar_escenario(esc5, EstadoFinal).
 validar_esc5.
 validar_esc5_ok.
+
+validar_ranking_esc5_ok.

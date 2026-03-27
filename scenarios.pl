@@ -77,6 +77,29 @@ mostrar_monopolios_jugadores([Jugador | Resto], Tablero) :-
     mostrar_monopolios_jugadores(Resto, Tablero).
 
 /*
+mostrar_ranking(+Estado)
+Imprime el ranking dinámico de los jugadores según patrimonio total.
+*/
+mostrar_ranking(Estado) :-
+    ranking_jugadores(Estado, Ranking),
+    writeln('Ranking dinamico:'),
+    mostrar_ranking_lista(Ranking, 1).
+
+mostrar_ranking_lista([], _).
+mostrar_ranking_lista(
+    [ranking(Nombre, Patrimonio, Dinero, ValorProps, NumProps) | Resto],
+    Pos
+) :-
+    write('  '), write(Pos), write('. '),
+    write(Nombre),
+    write(' -> patrimonio='), write(Patrimonio),
+    write(' | dinero='), write(Dinero),
+    write(' | valor_props='), write(ValorProps),
+    write(' | num_props='), writeln(NumProps),
+    Pos1 is Pos + 1,
+    mostrar_ranking_lista(Resto, Pos1).
+
+/*
 mostrar_metricas(+Metricas)
 Imprime métricas acumuladas de la simulación.
 */
@@ -198,10 +221,14 @@ ejecutar_escenario(IdEscenario, EstadoFinal) :-
     writeln('--------------------------------'),
     mostrar_monopolios(EstadoFinal), nl,
 
+        writeln('RANKING FINAL'),
+    writeln('--------------------------------'),
+    mostrar_ranking(EstadoFinal), nl,
+
     writeln('METRICAS'),
     writeln('--------------------------------'),
     mostrar_metricas(Metricas),
-
+    
     writeln('================================').
 
 % ============================================================
@@ -504,3 +531,19 @@ validar_esc5_ok :-
 
     Metricas = metricas(IterRev, 10, 6, 2, 0),
     reverse(IterRev, [1,1,1,1,1,1,1,1,1,1]).
+
+/*
+validar_ranking_esc5_ok/0
+Valida que el ranking final del escenario 5 sea coherente.
+*/
+validar_ranking_esc5_ok :-
+    estado_inicial(esc5, E0),
+    tiradas_escenario(esc5, Tiradas),
+    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, _Metricas),
+
+    ranking_jugadores(EFinal, Ranking),
+
+    Ranking = [
+        ranking(bob, 1522, 1062, 460, 4),
+        ranking(ana, 1478, 1318, 160, 2)
+    ].

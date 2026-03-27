@@ -912,3 +912,99 @@ resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, MOut) :-
     ;   EstadoOut = E1,
         metricas_inc_compras(M0, MOut)
     ).
+
+% =====================================
+% ISSUE 18 – MEJORA 2: PATRIMONIO + RANKING DINÁMICO
+% =====================================
+
+/*
+Patrimonio total de un jugador.
+
+Definición actual:
+- Patrimonio = Dinero + valor total de propiedades
+
+Nota:
+- Si en el futuro se añaden casas/hoteles/mejoras como parte del estado,
+  este predicado es el punto natural donde extender el cálculo.
+*/
+
+ /*
+  valor_propiedad_tablero(+PropId, +Tablero, -Precio)
+  Obtiene el precio de una propiedad según el tablero.
+  Determinista si cada PropId aparece una sola vez en el tablero.
+*/
+valor_propiedad_tablero(PropId, Tablero, Precio) :-
+    memberchk(propiedad(PropId, Precio, _Color), Tablero).
+
+/*
+  valor_propiedades(+Propiedades, +Tablero, -ValorTotal)
+  Suma el valor total de una lista de propiedades.
+*/
+valor_propiedades([], _Tablero, 0).
+valor_propiedades([PropId | Resto], Tablero, ValorTotal) :-
+    valor_propiedad_tablero(PropId, Tablero, Precio),
+    valor_propiedades(Resto, Tablero, ValorResto),
+    ValorTotal is Precio + ValorResto.
+
+/*
+  patrimonio_jugador(+Jugador, +Tablero, -Patrimonio)
+  Calcula el patrimonio total de un jugador.
+*/
+patrimonio_jugador(jugador(_Nombre, _Pos, Dinero, Props), Tablero, Patrimonio) :-
+    valor_propiedades(Props, Tablero, ValorProps),
+    Patrimonio is Dinero + ValorProps.
+
+
+/*
+Ranking dinámico.
+
+Criterio de orden:
+1) mayor patrimonio total
+2) en empate, mayor dinero
+3) en empate, nombre ascendente
+
+Representación de cada entrada del ranking:
+- ranking(Nombre, Patrimonio, Dinero, ValorPropiedades, NumPropiedades)
+*/
+
+ /*
+  entrada_ranking(+Jugador, +Tablero, -Entrada, -Clave)
+  Construye una entrada del ranking y su clave de orden.
+*/
+entrada_ranking(
+    jugador(Nombre, _Pos, Dinero, Props),
+    Tablero,
+    ranking(Nombre, Patrimonio, Dinero, ValorProps, NumProps),
+    k(NegPatrimonio, NegDinero, Nombre)
+) :-
+    valor_propiedades(Props, Tablero, ValorProps),
+    length(Props, NumProps),
+    Patrimonio is Dinero + ValorProps,
+    NegPatrimonio is -Patrimonio,
+    NegDinero is -Dinero.
+
+/*
+  construir_pares_ranking(+Jugadores, +Tablero, -Pares)
+  Construye pares Clave-Entrada para ordenarlos con keysort/2.
+*/
+construir_pares_ranking([], _Tablero, []).
+construir_pares_ranking([Jugador | Resto], Tablero, [Clave-Entrada | ParesResto]) :-
+    entrada_ranking(Jugador, Tablero, Entrada, Clave),
+    construir_pares_ranking(Resto, Tablero, ParesResto).
+
+/*
+  extraer_entradas_ranking(+ParesOrdenados, -Ranking)
+  Elimina las claves y deja solo las entradas del ranking.
+*/
+extraer_entradas_ranking([], []).
+extraer_entradas_ranking([_Clave-Entrada | Resto], [Entrada | RankingResto]) :-
+    extraer_entradas_ranking(Resto, RankingResto).
+
+/*
+  ranking_jugadores(+Estado, -Ranking)
+  Devuelve el ranking ordenado de los jugadores del estado.
+*/
+ranking_jugadores(estado(Js, Tablero, _Turno), Ranking) :-
+    construir_pares_ranking(Js, Tablero, Pares),
+    keysort(Pares, ParesOrdenados),
+    extraer_entradas_ranking(ParesOrdenados, Ranking).
