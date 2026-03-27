@@ -1,54 +1,6 @@
-ESCENARIO 1 -- COMPRAS INICIALES
-
-ejecutar_escenario(esc1, EstadoFinal).
-
-ESCENARIO 2 -- MONOPOLIOS
-
-ejecutar_escenario(esc2, EstadoFinal).
-
-JUGADORES ESTADO FINAL
-
-ejecutar_escenario(esc1, EstadoFinal),
-   resumen_jugadores(EstadoFinal, Jugadores).
-
-ver turno final del ESCENARIO
-
-ejecutar_escenario(esc1, EstadoFinal),
-   resumen_turno(EstadoFinal, Turno).
-
-TABLERO COMPLETO
-estado_inicial(esc1, Estado),
-mostrar_tablero(Estado).
-
-VALIDAR MOVER/4
-validar_mover_basico.
-
-VALIDAR TURNO BASE
-validar_turno_base.
-
-Validar módulo 40 y bonus de salida
-validar_modulo_y_salida.
-
-ESCENARIO 3 -- BANCARROTA
-
-ejecutar_escenario(esc3, EstadoFinal).
-
-ESCENARIO 4 -- ALQUILERES CONSECUTIVOS
-
-ejecutar_escenario(esc4, EstadoFinal).
-validar_alquileres_esc4.
-validar_alquileres_esc4_ok.
-
-MTERICAS
-
-ejecutar_escenario(esc4, EstadoFinal).
-validar_metricas_esc4_ok.
-
-
-ESCENARIO 5
-
-ejecutar_escenario(esc5, EstadoFinal).
-validar_esc5.
-validar_esc5_ok.
-
-validar_ranking_esc5_ok.
+?- [scenarios].
+?- listar_escenarios.
+?- ejecutar_escenario(esc14, EFinal).
+?- defensa_base.
+?- defensa_dobles_y_carcel.
+?- defensa_hipotecas.

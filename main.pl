@@ -459,6 +459,24 @@ set_prop_en_cartera(PropId, [PropRaw | Resto], PropNueva, [PropNueva | Resto]) :
 set_prop_en_cartera(PropId, [X | Resto], PropNueva, [X | Resto2]) :-
     set_prop_en_cartera(PropId, Resto, PropNueva, Resto2).
 
+
+%% titulo_propiedad_jugador(+Jugador, +PropId, -TituloProp)
+titulo_propiedad_jugador(Jugador, PropId, TituloProp) :-
+    jugador_campos(Jugador, _Nombre, _Pos, _Din, Props, _EstadoTurno),
+    buscar_prop_en_cartera(PropId, Props, TituloProp).
+
+%% update_propiedad_jugador(+Jugador, +PropId, +PropNueva, -JugadorActualizado)
+update_propiedad_jugador(Jugador, PropId, PropNueva, JugadorActualizado) :-
+    jugador_campos(Jugador, N, Pos, Din, Props, EstadoTurno),
+    set_prop_en_cartera(PropId, Props, PropNueva, Props2),
+    jugador_reconstruir_como(Jugador, N, Pos, Din, Props2, EstadoTurno, JugadorActualizado).
+
+%% propiedad_hipotecada_jugador(+Jugador, +PropId)
+propiedad_hipotecada_jugador(Jugador, PropId) :-
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    prop_hipotecada(TituloProp).
+
+
 propietario_de(PropId, [Jugador | _], Nombre, Jugador) :-
     jugador_campos(Jugador, Nombre, _Pos, _Din, Props, _EstadoTurno),
     cartera_tiene_prop(Props, PropId),
@@ -473,6 +491,91 @@ casilla_actual(estado(Js, Tablero, Turno), Casilla) :-
     nth0(Turno, Js, Jugador),
     jugador_campos(Jugador, _Nombre, Pos, _Din, _Props, _EstadoTurno),
     nth0(Pos, Tablero, Casilla).
+
+
+%% valor_hipoteca(+PropId, +Tablero, -Valor)
+%  Regla elegida: hipoteca = 50% del precio de compra.
+valor_hipoteca(PropId, Tablero, Valor) :-
+    valor_propiedad_tablero(PropId, Tablero, Precio),
+    Valor is Precio // 2.
+
+%% coste_cancelacion_hipoteca(+PropId, +Tablero, -Coste)
+%  Regla elegida: devolver hipoteca + 10%.
+coste_cancelacion_hipoteca(PropId, Tablero, Coste) :-
+    valor_hipoteca(PropId, Tablero, ValorHipoteca),
+    Coste is (ValorHipoteca * 110) // 100.
+
+
+%% hipotecar_propiedad(+EstadoIn, +NombreJugador, +PropId, -EstadoOut)
+%  Hipoteca una propiedad del jugador:
+%  - la propiedad debe pertenecer al jugador
+%  - no debe estar ya hipotecada
+%  - no debe tener casas (preparado para el futuro)
+%  - el jugador cobra el valor de hipoteca
+%
+%  Falla si no se cumplen las precondiciones.
+hipotecar_propiedad(estado(Js, Tablero, Turno), NombreJugador, PropId,
+                    estado(Js2, Tablero, Turno)) :-
+    get_jugador(NombreJugador, Js, Jugador),
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    prop_campos(TituloProp, PropId, no, Casas),
+    Casas =:= 0,
+
+    valor_hipoteca(PropId, Tablero, ValorHip),
+    jugador_campos(Jugador, _N, _Pos, Din, _Props, _EstadoTurno),
+    Din2 is Din + ValorHip,
+
+    reconstruir_prop(TituloProp, si, Casas, TituloHipotecado),
+    update_propiedad_jugador(Jugador, PropId, TituloHipotecado, J1),
+    update_dinero(J1, Din2, J2),
+
+    set_jugador(NombreJugador, Js, J2, Js2).
+
+%% deshipotecar_propiedad(+EstadoIn, +NombreJugador, +PropId, -EstadoOut)
+%  Cancela la hipoteca:
+%  - la propiedad debe pertenecer al jugador
+%  - debe estar hipotecada
+%  - el jugador debe poder pagar el coste
+%
+%  Falla si no se cumplen las precondiciones.
+deshipotecar_propiedad(estado(Js, Tablero, Turno), NombreJugador, PropId,
+                       estado(Js2, Tablero, Turno)) :-
+    get_jugador(NombreJugador, Js, Jugador),
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    prop_campos(TituloProp, PropId, si, Casas),
+
+    coste_cancelacion_hipoteca(PropId, Tablero, Coste),
+    jugador_campos(Jugador, _N, _Pos, Din, _Props, _EstadoTurno),
+    Din >= Coste,
+    Din2 is Din - Coste,
+
+    reconstruir_prop(TituloProp, no, Casas, TituloLibre),
+    update_propiedad_jugador(Jugador, PropId, TituloLibre, J1),
+    update_dinero(J1, Din2, J2),
+
+    set_jugador(NombreJugador, Js, J2, Js2).
+
+%% Wrappers cómodos sobre el jugador activo
+hipotecar_propiedad_activo(EstadoIn, PropId, EstadoOut) :-
+    jugador_activo(EstadoIn, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno),
+    hipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+
+deshipotecar_propiedad_activo(EstadoIn, PropId, EstadoOut) :-
+    jugador_activo(EstadoIn, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno),
+    deshipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+
+
+%% valor_titulo_cartera(+PropRaw, +Tablero, -Valor)
+valor_titulo_cartera(PropRaw, Tablero, Valor) :-
+    prop_campos(PropRaw, PropId, Hipotecada, _Casas),
+    valor_propiedad_tablero(PropId, Tablero, Precio),
+    (   Hipotecada == si
+    ->  valor_hipoteca(PropId, Tablero, ValorHip),
+        Valor is Precio - ValorHip
+    ;   Valor = Precio
+    ).
 
 
 % =====================================
@@ -517,6 +620,8 @@ regla_alquiler(EstadoIn, EstadoOut) :-
     (   Casilla = propiedad(PropId, _Precio, _),
         propietario_de(PropId, Js, NombreProp, JugProp),
         NombreProp \= NombreAct,
+        titulo_propiedad_jugador(JugProp, PropId, TituloProp),
+        \+ prop_hipotecada(TituloProp),
         alquiler_casilla(Casilla, Alq)
     ->  DinAct2 is DinAct - Alq,
         update_dinero(JugActual, DinAct2, JugAct2),
@@ -913,10 +1018,9 @@ valor_propiedad_tablero(PropId, Tablero, Precio) :-
 
 valor_propiedades([], _Tablero, 0).
 valor_propiedades([PropRaw | Resto], Tablero, ValorTotal) :-
-    prop_id(PropRaw, PropId),
-    valor_propiedad_tablero(PropId, Tablero, Precio),
+    valor_titulo_cartera(PropRaw, Tablero, ValorProp),
     valor_propiedades(Resto, Tablero, ValorResto),
-    ValorTotal is Precio + ValorResto.
+    ValorTotal is ValorProp + ValorResto.
 
 patrimonio_jugador(Jugador, Tablero, Patrimonio) :-
     jugador_campos(Jugador, _Nombre, _Pos, Dinero, Props, _EstadoTurno),

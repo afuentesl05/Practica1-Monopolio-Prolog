@@ -4,26 +4,23 @@
 % Contenido:
 % - Escenarios del proyecto
 % - Impresión formateada del estado
-% - Visualización de monopolios, ranking y métricas
-% - Predicados de ejecución manual de escenarios
+% - Visualización de monopolios, ranking, patrimonio y métricas
+% - Ejecución genérica de escenarios basados en tiradas o acciones
+% - Validaciones manuales útiles para defensa del proyecto
 %
-% Este archivo reutiliza la lógica definida en main.pl.
+% Este archivo reutiliza la lógica definida en main.pl.ñ
 % No añade reglas nuevas del juego.
 % ============================================================
 
 :- [main].
+:- discontiguous estado_inicial/2.
+:- discontiguous tiradas_escenario/2.
+:- discontiguous acciones_escenario_explicitas/2.
 
 % ============================================================
 % IMPRESIÓN FORMATEADA
 % ============================================================
 
-/*
-mostrar_estado(+Estado)
-Imprime el estado de forma limpia:
-- jugadores
-- turno
-No imprime el tablero completo para evitar ruido visual.
-*/
 mostrar_estado(estado(Jugadores, _Tablero, Turno)) :-
     writeln('Jugadores:'),
     mostrar_jugadores(Jugadores),
@@ -49,10 +46,6 @@ mostrar_jugador(Jugador) :-
         writeln(')')
     ).
 
-/*
-mostrar_tablero(+Estado)
-Imprime el tablero completo, solo cuando se quiera inspeccionar explícitamente.
-*/
 mostrar_tablero(estado(_Jugadores, Tablero, _Turno)) :-
     writeln('Tablero:'),
     mostrar_tablero_aux(Tablero, 0).
@@ -64,17 +57,6 @@ mostrar_tablero_aux([Casilla | Resto], Indice) :-
     Indice1 is Indice + 1,
     mostrar_tablero_aux(Resto, Indice1).
 
-% ============================================================
-% HELPERS DE INSPECCIÓN
-% ============================================================
-
-resumen_jugadores(estado(Js, _, _), Js).
-resumen_turno(estado(_, _, Turno), Turno).
-
-/*
-mostrar_monopolios(+Estado)
-Imprime qué jugadores tienen monopolios y de qué colores.
-*/
 mostrar_monopolios(estado(Js, Tablero, _Turno)) :-
     writeln('Monopolios detectados:'),
     mostrar_monopolios_jugadores(Js, Tablero).
@@ -86,10 +68,6 @@ mostrar_monopolios_jugadores([Jugador | Resto], Tablero) :-
     write('  '), write(Nombre), write(' -> '), writeln(Colores),
     mostrar_monopolios_jugadores(Resto, Tablero).
 
-/*
-mostrar_ranking(+Estado)
-Imprime el ranking dinámico de los jugadores según patrimonio total.
-*/
 mostrar_ranking(Estado) :-
     ranking_jugadores(Estado, Ranking),
     writeln('Ranking dinamico:'),
@@ -109,10 +87,21 @@ mostrar_ranking_lista(
     Pos1 is Pos + 1,
     mostrar_ranking_lista(Resto, Pos1).
 
-/*
-mostrar_metricas(+Metricas)
-Imprime métricas acumuladas de la simulación.
-*/
+mostrar_patrimonios(estado(Js, Tablero, _Turno)) :-
+    writeln('Patrimonios:'),
+    mostrar_patrimonios_jugadores(Js, Tablero).
+
+mostrar_patrimonios_jugadores([], _).
+mostrar_patrimonios_jugadores([Jugador | Resto], Tablero) :-
+    jugador_campos(Jugador, Nombre, _Pos, Din, Props, _EstadoTurno),
+    valor_propiedades(Props, Tablero, ValorProps),
+    patrimonio_jugador(Jugador, Tablero, Patrimonio),
+    write('  '), write(Nombre),
+    write(' -> patrimonio='), write(Patrimonio),
+    write(' | dinero='), write(Din),
+    write(' | valor_props='), writeln(ValorProps),
+    mostrar_patrimonios_jugadores(Resto, Tablero).
+
 mostrar_metricas(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas)) :-
     reverse(IterRev, IterPorTurno),
     writeln('Metricas:'),
@@ -122,30 +111,64 @@ mostrar_metricas(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas))
     write('  Alquileres: '), writeln(Alquileres),
     write('  Bancarrotas/eliminaciones: '), writeln(Bancarrotas).
 
-/*
-mostrar_cabecera(+Titulo)
-Cabecera uniforme para escenarios y validaciones.
-*/
 mostrar_cabecera(Titulo) :-
     writeln('================================'),
     writeln(Titulo),
+    writeln('================================').
+
+mostrar_acciones([]).
+mostrar_acciones([Accion | Resto]) :-
+    write('  - '), writeln(Accion),
+    mostrar_acciones(Resto).
+
+% ============================================================
+% HELPERS DE INSPECCIÓN
+% ============================================================
+
+resumen_jugadores(estado(Js, _, _), Js).
+resumen_turno(estado(_, _, Turno), Turno).
+
+resumen_jugador(Estado, Nombre, Pos, Din, Props, Libertad, Dobles) :-
+    Estado = estado(Js, _Tab, _Turno),
+    get_jugador(Nombre, Js, Jugador),
+    jugador_campos(Jugador, Nombre, Pos, Din, Props, estado_turno(Libertad, Dobles)).
+
+% ============================================================
+% CATÁLOGO DE ESCENARIOS
+% ============================================================
+
+escenario(esc1,  compras_iniciales,              'Compras iniciales y compatibilidad legacy').
+escenario(esc2,  monopolio_formado,              'Deteccion de monopolio con propiedades enriquecidas').
+escenario(esc3,  bancarrota_alquiler,            'Bancarrota por alquiler').
+escenario(esc4,  alquileres_consecutivos,        'Alquileres consecutivos y simetricos').
+escenario(esc5,  simulacion_completa,            'Simulacion legacy de 10 turnos').
+escenario(esc6,  dobles,                         'Doble simple que repite turno').
+escenario(esc7,  dobles_carcel,                  'Tercer doble consecutivo manda a carcel').
+escenario(esc8,  carcel_por_casilla,             'Caer en ir_carcel manda a carcel').
+escenario(esc9,  carcel_sin_doble,               'Jugador encarcelado que no sale').
+escenario(esc10, carcel_sale_por_doble,          'Jugador encarcelado sale por doble y no repite').
+escenario(esc11, carcel_pago_salida,             'Tercer intento fallido paga 50 y sale').
+escenario(esc12, hipoteca_basica,                'Hipotecar una propiedad').
+escenario(esc13, deshipoteca_basica,             'Hipotecar y deshipotecar una propiedad').
+escenario(esc14, alquiler_bloqueado_hipoteca,    'Una propiedad hipotecada no cobra alquiler').
+escenario(esc15, bancarrota_pago_carcel,         'Pago de salida de carcel provoca bancarrota').
+escenario(esc16, patrimonio_hipoteca_estable,    'Hipotecar mantiene el patrimonio').
+escenario(esc17, patrimonio_deshipoteca_baja,    'Deshipotecar baja patrimonio por el 10 por ciento').
+
+listar_escenarios :-
+    mostrar_cabecera('ESCENARIOS DISPONIBLES'), nl,
+    forall(escenario(Id, Tema, Descripcion),
+           ( write('  - '), write(Id),
+             write(' ['), write(Tema), write('] -> '),
+             writeln(Descripcion)
+           )),
     writeln('================================').
 
 % ============================================================
 % ESCENARIOS DEL PROYECTO
 % ============================================================
 
-/*
-Escenario 1:
-- 2 jugadores
-- primeras compras forzadas mediante tiradas predefinidas
-
-Secuencia:
-- Ana: 1 -> marron1
-- Bob: 3 -> marron2
-- Ana: 5 -> celeste1
-- Bob: 5 -> celeste2
-*/
+% esc1 — compras iniciales
 estado_inicial(esc1,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -159,14 +182,10 @@ estado_inicial(esc1,
 
 tiradas_escenario(esc1, [1,3,5,5]).
 
-/*
-Escenario 2:
-- Ana ya posee el monopolio marrón.
-- Sirve para verificar la detección de monopolio.
-*/
+% esc2 — monopolio formado con propiedades enriquecidas
 estado_inicial(esc2,
     estado(
-        [ jugador(ana, 0, 1380, [marron2, marron1]),
+        [ jugador(ana, 0, 1380, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
           jugador(bob, 0, 1500, [])
         ],
         Tablero,
@@ -177,12 +196,7 @@ estado_inicial(esc2,
 
 tiradas_escenario(esc2, [1]).
 
-/*
-Escenario 3:
-- Ana empieza con dinero muy bajo.
-- Bob ya es dueño de marron1.
-- Ana cae en marron1, paga alquiler y entra en bancarrota.
-*/
+% esc3 — bancarrota por alquiler
 estado_inicial(esc3,
     estado(
         [ jugador(ana, 0, 5, []),
@@ -196,15 +210,11 @@ estado_inicial(esc3,
 
 tiradas_escenario(esc3, [1]).
 
-/*
-Escenario 4:
-- alquileres consecutivos y simétricos
-- ambos jugadores terminan con el mismo dinero inicial
-*/
+% esc4 — alquileres consecutivos y simetricos
 estado_inicial(esc4,
     estado(
-        [ jugador(ana, 0, 1340, [celeste2, marron2]),
-          jugador(bob, 0, 1340, [celeste1, marron1])
+        [ jugador(ana, 0, 1340, [titulo(celeste2, no, 0), marron2]),
+          jugador(bob, 0, 1340, [titulo(celeste1, no, 0), marron1])
         ],
         Tablero,
         0
@@ -214,11 +224,7 @@ estado_inicial(esc4,
 
 tiradas_escenario(esc4, [1,3,5,5]).
 
-/*
-Escenario 5:
-- simulación completa de 10 turnos legacy
-- integra movimiento, compra, alquiler, ranking y métricas
-*/
+% esc5 — simulacion completa legacy de 10 turnos
 estado_inicial(esc5,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -232,11 +238,7 @@ estado_inicial(esc5,
 
 tiradas_escenario(esc5, [1,3,5,5,2,1,1,3,3,4]).
 
-/*
-Escenario 6:
-- doble simple
-- permite comprobar que el jugador repite turno y que se conserva estado_turno
-*/
+% esc6 — doble simple
 estado_inicial(esc6,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -250,11 +252,7 @@ estado_inicial(esc6,
 
 tiradas_escenario(esc6, [tirada(3,3)]).
 
-/*
-Escenario 7:
-- tres dobles seguidos del mismo jugador
-- en la tercera tirada va a la cárcel
-*/
+% esc7 — tercer doble a carcel
 estado_inicial(esc7,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -268,24 +266,196 @@ estado_inicial(esc7,
 
 tiradas_escenario(esc7, [tirada(1,1), tirada(2,2), tirada(3,3)]).
 
+% esc8 — caer en ir_carcel desde el movimiento
+estado_inicial(esc8,
+    estado(
+        [ jugador(ana, 27, 1500, []),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc8, [3]).
+
+% esc9 — jugador encarcelado que no sale por no sacar doble
+estado_inicial(esc9,
+    estado(
+        [ jugador(ana, 10, 1500, [], estado_turno(carcel(3), 0)),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc9, [tirada(2,3)]).
+
+% esc10 — jugador encarcelado sale por doble y no repite
+estado_inicial(esc10,
+    estado(
+        [ jugador(ana, 10, 1500, [], estado_turno(carcel(3), 0)),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc10, [tirada(1,1)]).
+
+% esc11 — tercer intento fallido paga 50 y sale
+estado_inicial(esc11,
+    estado(
+        [ jugador(ana, 10, 1500, [], estado_turno(carcel(1), 0)),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc11, [tirada(2,3)]).
+
+% esc12 — hipoteca básica
+estado_inicial(esc12,
+    estado(
+        [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc12, [hipotecar(ana, marron1)]).
+
+% esc13 — hipoteca y deshipoteca
+estado_inicial(esc13,
+    estado(
+        [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc13, [hipotecar(ana, marron1), deshipotecar(ana, marron1)]).
+
+% esc14 — una propiedad hipotecada no cobra alquiler
+estado_inicial(esc14,
+    estado(
+        [ jugador(ana, 0, 1500, []),
+          jugador(bob, 0, 1500, [titulo(marron1, si, 0)])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc14, [1]).
+
+% esc15 — bancarrota al pagar salida de carcel
+estado_inicial(esc15,
+    estado(
+        [ jugador(ana, 10, 40, [], estado_turno(carcel(1), 0)),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc15, [tirada(2,3)]).
+
+% esc16 — patrimonio estable al hipotecar
+estado_inicial(esc16,
+    estado(
+        [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc16, [hipotecar(ana, marron1)]).
+
+% esc17 — patrimonio baja al deshipotecar por el coste extra
+estado_inicial(esc17,
+    estado(
+        [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc17, [hipotecar(ana, marron1), deshipotecar(ana, marron1)]).
+
+% ============================================================
+% ACCIONES DE ESCENARIO
+% ============================================================
+
+envolver_tirada(T, tirar(T)).
+
+acciones_escenario(IdEscenario, Acciones) :-
+    acciones_escenario_explicitas(IdEscenario, Acciones), !.
+acciones_escenario(IdEscenario, Acciones) :-
+    tiradas_escenario(IdEscenario, Tiradas),
+    maplist(envolver_tirada, Tiradas, Acciones).
+
+accion_turno(tirar(Tirada)).
+
+% ============================================================
+% EJECUCIÓN GENÉRICA DE ACCIONES
+% ============================================================
+
+ejecutar_acciones_metricas(Estado, [], Estado, M, M) :- !.
+ejecutar_acciones_metricas(EstadoIn, [Accion | Resto], EstadoOut, M0, MOut) :-
+    ejecutar_accion_metricas(Accion, EstadoIn, EstadoNext, M0, M1),
+    ejecutar_acciones_metricas(EstadoNext, Resto, EstadoOut, M1, MOut).
+
+ejecutar_accion_metricas(tirar(Tirada), EstadoIn, EstadoOut, M0, MOut) :-
+    turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut).
+ejecutar_accion_metricas(hipotecar(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
+    hipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+ejecutar_accion_metricas(deshipotecar(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
+    deshipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+
 % ============================================================
 % EJECUCIÓN GENERAL DE ESCENARIOS
 % ============================================================
 
-/*
-ejecutar_escenario(+IdEscenario, -EstadoFinal)
-Ejecuta el escenario e imprime estado, monopolios, ranking y métricas.
-*/
+resolver_escenario(IdEscenario, EstadoFinal) :-
+    resolver_escenario_metricas(IdEscenario, EstadoFinal, _Metricas).
+
+resolver_escenario_metricas(IdEscenario, EstadoFinal, Metricas) :-
+    estado_inicial(IdEscenario, EstadoInicial),
+    acciones_escenario(IdEscenario, Acciones),
+    metricas_init(M0),
+    ejecutar_acciones_metricas(EstadoInicial, Acciones, EstadoFinal, M0, Metricas).
+
 ejecutar_escenario(IdEscenario, EstadoFinal) :-
     ejecutar_escenario_metricas(IdEscenario, EstadoFinal, _Metricas).
 
-/*
-ejecutar_escenario_metricas(+IdEscenario, -EstadoFinal, -Metricas)
-Versión que también devuelve las métricas acumuladas.
-*/
 ejecutar_escenario_metricas(IdEscenario, EstadoFinal, Metricas) :-
     estado_inicial(IdEscenario, EstadoInicial),
-    tiradas_escenario(IdEscenario, Tiradas),
+    acciones_escenario(IdEscenario, Acciones),
+    resolver_escenario_metricas(IdEscenario, EstadoFinal, Metricas),
 
     atomic_list_concat(['ESCENARIO: ', IdEscenario], Titulo),
     mostrar_cabecera(Titulo), nl,
@@ -298,11 +468,13 @@ ejecutar_escenario_metricas(IdEscenario, EstadoFinal, Metricas) :-
     writeln('--------------------------------'),
     mostrar_monopolios(EstadoInicial), nl,
 
-    writeln('TIRADAS DEL ESCENARIO'),
+    writeln('PATRIMONIOS INICIALES'),
     writeln('--------------------------------'),
-    writeln(Tiradas), nl,
+    mostrar_patrimonios(EstadoInicial), nl,
 
-    simular_turnos_con_reglas_metricas(EstadoInicial, Tiradas, EstadoFinal, Metricas),
+    writeln('ACCIONES DEL ESCENARIO'),
+    writeln('--------------------------------'),
+    mostrar_acciones(Acciones), nl,
 
     writeln('ESTADO FINAL'),
     writeln('--------------------------------'),
@@ -311,6 +483,10 @@ ejecutar_escenario_metricas(IdEscenario, EstadoFinal, Metricas) :-
     writeln('MONOPOLIOS FINALES'),
     writeln('--------------------------------'),
     mostrar_monopolios(EstadoFinal), nl,
+
+    writeln('PATRIMONIOS FINALES'),
+    writeln('--------------------------------'),
+    mostrar_patrimonios(EstadoFinal), nl,
 
     writeln('RANKING FINAL'),
     writeln('--------------------------------'),
@@ -321,6 +497,11 @@ ejecutar_escenario_metricas(IdEscenario, EstadoFinal, Metricas) :-
     mostrar_metricas(Metricas), nl,
 
     writeln('================================').
+
+
+ejecutar_todos_escenarios :-
+    forall(escenario(Id, _Tema, _Descripcion),
+           ( ejecutar_escenario(Id, _), nl )).
 
 % ============================================================
 % VALIDACIONES MANUALES RÁPIDAS
@@ -371,31 +552,93 @@ validar_modulo_y_salida :-
     writeln('================================').
 
 validar_doble_simple :-
-    mostrar_cabecera('VALIDACION: doble simple'), nl,
-    estado_inicial(esc6, E0),
-    tiradas_escenario(esc6, Tiradas),
-    writeln('Estado inicial:'),
-    mostrar_estado(E0), nl,
-    writeln('Tiradas:'),
-    writeln(Tiradas), nl,
-    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, Metricas),
-    writeln('Estado final:'),
-    mostrar_estado(EFinal), nl,
-    writeln('Metricas:'),
-    mostrar_metricas(Metricas),
-    writeln('================================').
+    ejecutar_escenario(esc6, _).
 
 validar_tercer_doble_carcel :-
-    mostrar_cabecera('VALIDACION: tercer doble a carcel'), nl,
-    estado_inicial(esc7, E0),
-    tiradas_escenario(esc7, Tiradas),
-    writeln('Estado inicial:'),
-    mostrar_estado(E0), nl,
-    writeln('Tiradas:'),
-    writeln(Tiradas), nl,
-    simular_turnos_con_reglas_metricas(E0, Tiradas, EFinal, Metricas),
-    writeln('Estado final:'),
-    mostrar_estado(EFinal), nl,
-    writeln('Metricas:'),
-    mostrar_metricas(Metricas),
+    ejecutar_escenario(esc7, _).
+
+validar_carcel_por_casilla :-
+    ejecutar_escenario(esc8, _).
+
+validar_carcel_sin_doble :-
+    ejecutar_escenario(esc9, _).
+
+validar_carcel_sale_por_doble :-
+    ejecutar_escenario(esc10, _).
+
+validar_carcel_pago_salida :-
+    ejecutar_escenario(esc11, _).
+
+validar_hipoteca_basica :-
+    ejecutar_escenario(esc12, _).
+
+validar_deshipoteca_basica :-
+    ejecutar_escenario(esc13, _).
+
+validar_alquiler_bloqueado_hipoteca :-
+    ejecutar_escenario(esc14, EstadoFinal),
+    mostrar_cabecera('RESUMEN: alquiler bloqueado por hipoteca'), nl,
+    resumen_jugador(EstadoFinal, ana, _PosA, DinA, _PropsA, _LibA, _DobA),
+    resumen_jugador(EstadoFinal, bob, _PosB, DinB, _PropsB, _LibB, _DobB),
+    write('Dinero final de Ana (esperado 1500): '), writeln(DinA),
+    write('Dinero final de Bob (esperado 1500): '), writeln(DinB),
     writeln('================================').
+
+validar_bancarrota_pago_carcel :-
+    ejecutar_escenario(esc15, _).
+
+validar_patrimonio_hipoteca_estable :-
+    estado_inicial(esc16, E0),
+    resolver_escenario(esc16, E1),
+    E0 = estado(Js0, Tab, _),
+    E1 = estado(Js1, _, _),
+    get_jugador(ana, Js0, J0),
+    get_jugador(ana, Js1, J1),
+    patrimonio_jugador(J0, Tab, P0),
+    patrimonio_jugador(J1, Tab, P1),
+    Dif is P1 - P0,
+    mostrar_cabecera('VALIDACION: patrimonio estable al hipotecar'), nl,
+    write('Patrimonio antes: '), writeln(P0),
+    write('Patrimonio despues: '), writeln(P1),
+    write('Diferencia observada: '), writeln(Dif),
+    writeln('Esperado: 0'),
+    writeln('================================').
+
+validar_patrimonio_deshipoteca_baja :-
+    estado_inicial(esc17, E0),
+    resolver_escenario(esc17, E1),
+    E0 = estado(Js0, Tab, _),
+    E1 = estado(Js1, _, _),
+    get_jugador(ana, Js0, J0),
+    get_jugador(ana, Js1, J1),
+    patrimonio_jugador(J0, Tab, P0),
+    patrimonio_jugador(J1, Tab, P1),
+    Dif is P0 - P1,
+    mostrar_cabecera('VALIDACION: patrimonio baja al deshipotecar'), nl,
+    write('Patrimonio antes: '), writeln(P0),
+    write('Patrimonio despues: '), writeln(P1),
+    write('Diferencia observada: '), writeln(Dif),
+    writeln('Esperado: 3'),
+    writeln('================================').
+
+% Alias útiles para defensa en vivo
+
+defensa_base :-
+    ejecutar_escenario(esc1, _),
+    ejecutar_escenario(esc4, _),
+    ejecutar_escenario(esc5, _).
+
+defensa_dobles_y_carcel :-
+    ejecutar_escenario(esc6, _),
+    ejecutar_escenario(esc7, _),
+    ejecutar_escenario(esc8, _),
+    ejecutar_escenario(esc10, _),
+    ejecutar_escenario(esc11, _).
+
+defensa_hipotecas :-
+    ejecutar_escenario(esc12, _),
+    ejecutar_escenario(esc13, _),
+    ejecutar_escenario(esc14, _),
+    validar_patrimonio_hipoteca_estable,
+    validar_patrimonio_deshipoteca_baja.
+
