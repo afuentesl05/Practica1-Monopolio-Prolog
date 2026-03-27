@@ -568,14 +568,21 @@ deshipotecar_propiedad_activo(EstadoIn, PropId, EstadoOut) :-
 
 
 %% valor_titulo_cartera(+PropRaw, +Tablero, -Valor)
+%  Valor de una propiedad en cartera:
+%  - valor del título ajustado por hipoteca
+%  - más valor acumulado de las casas
 valor_titulo_cartera(PropRaw, Tablero, Valor) :-
-    prop_campos(PropRaw, PropId, Hipotecada, _Casas),
+    prop_campos(PropRaw, PropId, Hipotecada, Casas),
     valor_propiedad_tablero(PropId, Tablero, Precio),
+
     (   Hipotecada == si
     ->  valor_hipoteca(PropId, Tablero, ValorHip),
-        Valor is Precio - ValorHip
-    ;   Valor = Precio
-    ).
+        ValorTitulo is Precio - ValorHip
+    ;   ValorTitulo = Precio
+    ),
+
+    valor_casas_propiedad(PropId, Casas, Tablero, ValorCasas),
+    Valor is ValorTitulo + ValorCasas.
 
 
 % =====================================
@@ -699,9 +706,7 @@ regla_alquiler(EstadoIn, EstadoOut) :-
     (   Casilla = propiedad(PropId, _Precio, _),
         propietario_de(PropId, Js, NombreProp, JugProp),
         NombreProp \= NombreAct,
-        titulo_propiedad_jugador(JugProp, PropId, TituloProp),
-        \+ prop_hipotecada(TituloProp),
-        alquiler_casilla(Casilla, Alq)
+        alquiler_propiedad_jugador(JugProp, PropId, Tablero, Alq)
     ->  DinAct2 is DinAct - Alq,
         update_dinero(JugActual, DinAct2, JugAct2),
         set_jugador(NombreAct, Js, JugAct2, JsTmp),
@@ -716,6 +721,36 @@ regla_alquiler(EstadoIn, EstadoOut) :-
     ),
     !.
 
+
+% =====================================
+% ALQUILER DEPENDIENTE DE CASAS
+% =====================================
+
+%% alquiler_base_propiedad(+PropId, +Tablero, -AlquilerBase)
+%  Alquiler base de una propiedad sin casas.
+%  Se mantiene la regla actual: precio // 10.
+alquiler_base_propiedad(PropId, Tablero, AlquilerBase) :-
+    valor_propiedad_tablero(PropId, Tablero, Precio),
+    AlquilerBase is Precio // 10.
+
+%% factor_alquiler_casas(+Casas, -Factor)
+%  Multiplicador del alquiler base según el número de casas.
+factor_alquiler_casas(0, 1).
+factor_alquiler_casas(1, 5).
+factor_alquiler_casas(2, 15).
+factor_alquiler_casas(3, 45).
+factor_alquiler_casas(4, 80).
+
+%% alquiler_propiedad_jugador(+JugadorProp, +PropId, +Tablero, -Alquiler)
+%  Calcula el alquiler efectivo de una propiedad concreta del propietario.
+%  Falla si la propiedad está hipotecada.
+alquiler_propiedad_jugador(JugadorProp, PropId, Tablero, Alquiler) :-
+    titulo_propiedad_jugador(JugadorProp, PropId, TituloProp),
+    prop_campos(TituloProp, PropId, Hipotecada, Casas),
+    Hipotecada == no,
+    alquiler_base_propiedad(PropId, Tablero, AlquilerBase),
+    factor_alquiler_casas(Casas, Factor),
+    Alquiler is AlquilerBase * Factor.
 
 % =====================================
 % ISSUE 10 – REGLA 2 (MONOPOLIO)
@@ -1106,6 +1141,12 @@ color_propiedad(PropId, Tablero, Color) :-
 coste_casa_propiedad(PropId, Tablero, Coste) :-
     color_propiedad(PropId, Tablero, Color),
     coste_casa(Color, Coste).
+
+%% valor_casas_propiedad(+PropId, +NumCasas, +Tablero, -ValorCasas)
+%  Valor total de las casas construidas sobre una propiedad.
+valor_casas_propiedad(PropId, NumCasas, Tablero, ValorCasas) :-
+    coste_casa_propiedad(PropId, Tablero, CosteCasa),
+    ValorCasas is NumCasas * CosteCasa.
 
 
 % =====================================

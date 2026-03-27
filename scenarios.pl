@@ -8,7 +8,7 @@
 % - Ejecución genérica de escenarios basados en tiradas o acciones
 % - Validaciones manuales útiles para defensa del proyecto
 %
-% Este archivo reutiliza la lógica definida en main.pl.ñ
+% Este archivo reutiliza la lógica definida en main.pl.
 % No añade reglas nuevas del juego.
 % ============================================================
 
@@ -154,6 +154,14 @@ escenario(esc14, alquiler_bloqueado_hipoteca,    'Una propiedad hipotecada no co
 escenario(esc15, bancarrota_pago_carcel,         'Pago de salida de carcel provoca bancarrota').
 escenario(esc16, patrimonio_hipoteca_estable,    'Hipotecar mantiene el patrimonio').
 escenario(esc17, patrimonio_deshipoteca_baja,    'Deshipotecar baja patrimonio por el 10 por ciento').
+escenario(esc18, construccion_casa_basica,      'Construccion basica de una casa con monopolio').
+escenario(esc19, alquiler_con_una_casa,         'Alquiler aumentado por una casa').
+escenario(esc20, alquiler_con_dos_casas,        'Alquiler aumentado por dos casas').
+escenario(esc21, patrimonio_casa_estable,       'Construir una casa mantiene el patrimonio total').
+escenario(esc22, construccion_sin_monopolio_bloqueada, 'No se puede construir sin monopolio').
+escenario(esc23, construccion_sobre_hipotecada_bloqueada, 'No se puede construir sobre propiedad hipotecada').
+escenario(esc24, construccion_sin_dinero_bloqueada, 'No se puede construir sin dinero suficiente').
+escenario(esc25, construccion_maximo_casas_bloqueada, 'No se puede construir por encima de 4 casas').
 
 listar_escenarios :-
     mostrar_cabecera('ESCENARIOS DISPONIBLES'), nl,
@@ -406,6 +414,128 @@ estado_inicial(esc17,
 
 acciones_escenario_explicitas(esc17, [hipotecar(ana, marron1), deshipotecar(ana, marron1)]).
 
+
+% esc18 — construccion basica de una casa
+estado_inicial(esc18,
+    estado(
+        [ jugador(ana, 0, 1380, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc18, [construir_casa(ana, marron1)]).
+
+% esc19 — alquiler con una casa
+% Bob ya tiene monopolio marron y 1 casa en marron1.
+% Ana cae en marron1 y paga alquiler aumentado.
+estado_inicial(esc19,
+    estado(
+        [ jugador(ana, 0, 1500, []),
+          jugador(bob, 0, 1330, [titulo(marron2, no, 0), titulo(marron1, no, 1)])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc19, [1]).
+
+% esc20 — alquiler con dos casas
+% Bob ya tiene monopolio marron y 2 casas en marron1.
+% Ana cae en marron1 y paga alquiler mas alto.
+estado_inicial(esc20,
+    estado(
+        [ jugador(ana, 0, 1500, []),
+          jugador(bob, 0, 1280, [titulo(marron2, no, 0), titulo(marron1, no, 2)])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+tiradas_escenario(esc20, [1]).
+
+% esc21 — patrimonio estable al construir una casa
+% Mismo estado base que esc18, pero se usa para defender patrimonio/ranking.
+estado_inicial(esc21,
+    estado(
+        [ jugador(ana, 0, 1380, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc21, [construir_casa(ana, marron1)]).
+
+
+% esc22 — intento de construccion sin monopolio
+estado_inicial(esc22,
+    estado(
+        [ jugador(ana, 0, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc22, [intentar_construir_casa(ana, marron1)]).
+
+
+% esc23 — intento de construccion sobre propiedad hipotecada
+estado_inicial(esc23,
+    estado(
+        [ jugador(ana, 0, 1410, [titulo(marron2, no, 0), titulo(marron1, si, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc23, [intentar_construir_casa(ana, marron1)]).
+
+
+% esc24 — intento de construccion sin dinero suficiente
+estado_inicial(esc24,
+    estado(
+        [ jugador(ana, 0, 40, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc24, [intentar_construir_casa(ana, marron1)]).
+
+
+% esc25 — intento de construccion con maximo de casas alcanzado
+estado_inicial(esc25,
+    estado(
+        [ jugador(ana, 0, 1330, [titulo(marron2, no, 0), titulo(marron1, no, 4)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tablero,
+        0
+    )
+) :-
+    tablero_base(Tablero).
+
+acciones_escenario_explicitas(esc25, [intentar_construir_casa(ana, marron1)]).
+
 % ============================================================
 % ACCIONES DE ESCENARIO
 % ============================================================
@@ -418,6 +548,15 @@ acciones_escenario(IdEscenario, Acciones) :-
     tiradas_escenario(IdEscenario, Tiradas),
     maplist(envolver_tirada, Tiradas, Acciones).
 
+ejecutar_accion_metricas(construir_casa(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
+    construir_casa(EstadoIn, Nombre, PropId, EstadoOut).
+
+ejecutar_accion_metricas(intentar_construir_casa(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
+    (   construir_casa(EstadoIn, Nombre, PropId, EstadoTmp)
+    ->  EstadoOut = EstadoTmp
+    ;   EstadoOut = EstadoIn
+    ).
+
 accion_turno(tirar(Tirada)).
 
 % ============================================================
@@ -425,16 +564,23 @@ accion_turno(tirar(Tirada)).
 % ============================================================
 
 ejecutar_acciones_metricas(Estado, [], Estado, M, M) :- !.
+
 ejecutar_acciones_metricas(EstadoIn, [Accion | Resto], EstadoOut, M0, MOut) :-
     ejecutar_accion_metricas(Accion, EstadoIn, EstadoNext, M0, M1),
     ejecutar_acciones_metricas(EstadoNext, Resto, EstadoOut, M1, MOut).
 
 ejecutar_accion_metricas(tirar(Tirada), EstadoIn, EstadoOut, M0, MOut) :-
     turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut).
+
 ejecutar_accion_metricas(hipotecar(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
     hipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+
 ejecutar_accion_metricas(deshipotecar(Nombre, PropId), EstadoIn, EstadoOut, M, M) :-
     deshipotecar_propiedad(EstadoIn, Nombre, PropId, EstadoOut).
+
+
+
+
 
 % ============================================================
 % EJECUCIÓN GENERAL DE ESCENARIOS
@@ -621,6 +767,114 @@ validar_patrimonio_deshipoteca_baja :-
     writeln('Esperado: 3'),
     writeln('================================').
 
+
+validar_construccion_casa_basica :-
+    ejecutar_escenario(esc18, EstadoFinal),
+    mostrar_cabecera('RESUMEN: construccion basica de casa'), nl,
+    resumen_jugador(EstadoFinal, ana, _PosA, DinA, PropsA, _LibA, _DobA),
+    write('Dinero final de Ana (esperado 1330): '), writeln(DinA),
+    write('Propiedades finales de Ana (esperado una casa en marron1): '), writeln(PropsA),
+    writeln('================================').
+
+validar_alquiler_una_casa :-
+    ejecutar_escenario(esc19, EstadoFinal),
+    mostrar_cabecera('RESUMEN: alquiler con una casa'), nl,
+    resumen_jugador(EstadoFinal, ana, _PosA, DinA, _PropsA, _LibA, _DobA),
+    resumen_jugador(EstadoFinal, bob, _PosB, DinB, _PropsB, _LibB, _DobB),
+    write('Dinero final de Ana (esperado 1470): '), writeln(DinA),
+    write('Dinero final de Bob (esperado 1360): '), writeln(DinB),
+    writeln('================================').
+
+validar_alquiler_dos_casas :-
+    ejecutar_escenario(esc20, EstadoFinal),
+    mostrar_cabecera('RESUMEN: alquiler con dos casas'), nl,
+    resumen_jugador(EstadoFinal, ana, _PosA, DinA, _PropsA, _LibA, _DobA),
+    resumen_jugador(EstadoFinal, bob, _PosB, DinB, _PropsB, _LibB, _DobB),
+    write('Dinero final de Ana (esperado 1410): '), writeln(DinA),
+    write('Dinero final de Bob (esperado 1370): '), writeln(DinB),
+    writeln('================================').
+
+validar_patrimonio_casa_estable :-
+    estado_inicial(esc21, E0),
+    resolver_escenario(esc21, E1),
+    E0 = estado(Js0, Tab, _),
+    E1 = estado(Js1, _, _),
+    get_jugador(ana, Js0, J0),
+    get_jugador(ana, Js1, J1),
+    patrimonio_jugador(J0, Tab, P0),
+    patrimonio_jugador(J1, Tab, P1),
+    Dif is P1 - P0,
+    mostrar_cabecera('VALIDACION: patrimonio estable al construir una casa'), nl,
+    write('Patrimonio antes: '), writeln(P0),
+    write('Patrimonio despues: '), writeln(P1),
+    write('Diferencia observada: '), writeln(Dif),
+    writeln('Esperado: 0'),
+    writeln('================================').
+
+validar_no_construye_sin_monopolio :-
+    tablero_base(Tab),
+    E0 = estado(
+        [ jugador(ana, 0, 1440, [titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tab,
+        0
+    ),
+    mostrar_cabecera('VALIDACION: no se puede construir sin monopolio'), nl,
+    (   construir_casa(E0, ana, marron1, _)
+    ->  writeln('ERROR: la construccion ha sido permitida y no debia.')
+    ;   writeln('OK: la construccion falla sin monopolio.')
+    ),
+    writeln('================================').
+
+validar_no_construye_propiedad_hipotecada :-
+    tablero_base(Tab),
+    E0 = estado(
+        [ jugador(ana, 0, 1410, [titulo(marron2, no, 0), titulo(marron1, si, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tab,
+        0
+    ),
+    mostrar_cabecera('VALIDACION: no se puede construir sobre propiedad hipotecada'), nl,
+    (   construir_casa(E0, ana, marron1, _)
+    ->  writeln('ERROR: la construccion ha sido permitida y no debia.')
+    ;   writeln('OK: la construccion falla sobre propiedad hipotecada.')
+    ),
+    writeln('================================').
+
+validar_no_construye_sin_dinero :-
+    tablero_base(Tab),
+    E0 = estado(
+        [ jugador(ana, 0, 40, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tab,
+        0
+    ),
+    mostrar_cabecera('VALIDACION: no se puede construir sin dinero suficiente'), nl,
+    (   construir_casa(E0, ana, marron1, _)
+    ->  writeln('ERROR: la construccion ha sido permitida y no debia.')
+    ;   writeln('OK: la construccion falla por dinero insuficiente.')
+    ),
+    writeln('================================').
+
+validar_no_construye_mas_de_cuatro :-
+    tablero_base(Tab),
+    E0 = estado(
+        [ jugador(ana, 0, 1330, [titulo(marron2, no, 0), titulo(marron1, no, 4)]),
+          jugador(bob, 0, 1500, [])
+        ],
+        Tab,
+        0
+    ),
+    mostrar_cabecera('VALIDACION: no se puede construir por encima de 4 casas'), nl,
+    (   construir_casa(E0, ana, marron1, _)
+    ->  writeln('ERROR: la construccion ha sido permitida y no debia.')
+    ;   writeln('OK: la construccion falla al alcanzar el maximo de casas.')
+    ),
+    writeln('================================').
+
 % Alias útiles para defensa en vivo
 
 defensa_base :-
@@ -641,4 +895,14 @@ defensa_hipotecas :-
     ejecutar_escenario(esc14, _),
     validar_patrimonio_hipoteca_estable,
     validar_patrimonio_deshipoteca_baja.
+
+defensa_casas :-
+    ejecutar_escenario(esc18, _),
+    ejecutar_escenario(esc19, _),
+    ejecutar_escenario(esc20, _),
+    ejecutar_escenario(esc21, _),
+    ejecutar_escenario(esc22, _),
+    ejecutar_escenario(esc23, _),
+    ejecutar_escenario(esc24, _),
+    ejecutar_escenario(esc25, _).
 

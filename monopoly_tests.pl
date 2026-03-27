@@ -337,4 +337,148 @@ test(esc17_ranking_tras_deshipoteca) :-
         ranking(ana, 1497, 1437, 60, 1)
     ]).
 
+% ============================================================
+% CASAS
+% ============================================================
+
+test(esc18_construccion_casa_basica) :-
+    resolver_escenario_metricas(esc18, EFinal, Metricas),
+
+    turno_actual(EFinal, 0),
+    jugador_resumen(EFinal, ana, 0, 1330, PropsAna, libre, 0),
+    jugador_resumen(EFinal, bob, 0, 1500, PropsBob, libre, 0),
+
+    assertion(PropsAna == [titulo(marron2, no, 0), titulo(marron1, no, 1)]),
+    assertion(PropsBob == []),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == []),
+    assertion(IterTotal =:= 0),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 0),
+    assertion(Bancarrotas =:= 0).
+
+test(esc19_alquiler_con_una_casa) :-
+    resolver_escenario_metricas(esc19, EFinal, Metricas),
+
+    turno_actual(EFinal, 1),
+    jugador_resumen(EFinal, ana, 1, 1470, _PropsAna, libre, 0),
+    jugador_resumen(EFinal, bob, 0, 1360, PropsBob, libre, 0),
+
+    assertion(PropsBob == [titulo(marron2, no, 0), titulo(marron1, no, 1)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == [1]),
+    assertion(IterTotal =:= 1),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 1),
+    assertion(Bancarrotas =:= 0).
+
+test(esc20_alquiler_con_dos_casas) :-
+    resolver_escenario_metricas(esc20, EFinal, Metricas),
+
+    turno_actual(EFinal, 1),
+    jugador_resumen(EFinal, ana, 1, 1410, _PropsAna, libre, 0),
+    jugador_resumen(EFinal, bob, 0, 1370, PropsBob, libre, 0),
+
+    assertion(PropsBob == [titulo(marron2, no, 0), titulo(marron1, no, 2)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == [1]),
+    assertion(IterTotal =:= 1),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 1),
+    assertion(Bancarrotas =:= 0).
+
+test(esc21_construir_casa_mantiene_patrimonio) :-
+    estado_inicial(esc21, E0),
+    E0 = estado([JugAna0, JugBob0], Tablero, _),
+    patrimonio_jugador(JugAna0, Tablero, PatrimonioAna0),
+    patrimonio_jugador(JugBob0, Tablero, PatrimonioBob0),
+
+    resolver_escenario_metricas(esc21, EFinal, _Metricas),
+    EFinal = estado(JsF, _, _),
+    get_jugador(ana, JsF, JugAnaF),
+    get_jugador(bob, JsF, JugBobF),
+
+    patrimonio_jugador(JugAnaF, Tablero, PatrimonioAnaF),
+    patrimonio_jugador(JugBobF, Tablero, PatrimonioBobF),
+
+    assertion(PatrimonioAna0 =:= 1500),
+    assertion(PatrimonioAnaF =:= 1500),
+    assertion(PatrimonioBob0 =:= 1500),
+    assertion(PatrimonioBobF =:= 1500).
+
+test(esc21_ranking_tras_construir_casa) :-
+    resolver_escenario_metricas(esc21, EFinal, _Metricas),
+    ranking_jugadores(EFinal, Ranking),
+    assertion(Ranking == [
+        ranking(bob, 1500, 1500, 0, 0),
+        ranking(ana, 1500, 1330, 170, 2)
+    ]).
+
+test(esc22_no_construye_sin_monopolio) :-
+    estado_inicial(esc22, E0),
+    resolver_escenario_metricas(esc22, EFinal, Metricas),
+
+    assertion(EFinal == E0),
+
+    jugador_resumen(EFinal, ana, 0, 1440, PropsAna, libre, 0),
+    assertion(PropsAna == [titulo(marron1, no, 0)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == []),
+    assertion(IterTotal =:= 0),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 0),
+    assertion(Bancarrotas =:= 0).
+
+test(esc23_no_construye_sobre_propiedad_hipotecada) :-
+    estado_inicial(esc23, E0),
+    resolver_escenario_metricas(esc23, EFinal, Metricas),
+
+    assertion(EFinal == E0),
+
+    jugador_resumen(EFinal, ana, 0, 1410, PropsAna, libre, 0),
+    assertion(PropsAna == [titulo(marron2, no, 0), titulo(marron1, si, 0)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == []),
+    assertion(IterTotal =:= 0),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 0),
+    assertion(Bancarrotas =:= 0).
+
+test(esc24_no_construye_sin_dinero) :-
+    estado_inicial(esc24, E0),
+    resolver_escenario_metricas(esc24, EFinal, Metricas),
+
+    assertion(EFinal == E0),
+
+    jugador_resumen(EFinal, ana, 0, 40, PropsAna, libre, 0),
+    assertion(PropsAna == [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == []),
+    assertion(IterTotal =:= 0),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 0),
+    assertion(Bancarrotas =:= 0).
+
+test(esc25_no_construye_mas_de_cuatro_casas) :-
+    estado_inicial(esc25, E0),
+    resolver_escenario_metricas(esc25, EFinal, Metricas),
+
+    assertion(EFinal == E0),
+
+    jugador_resumen(EFinal, ana, 0, 1330, PropsAna, libre, 0),
+    assertion(PropsAna == [titulo(marron2, no, 0), titulo(marron1, no, 4)]),
+
+    metricas_resumen(Metricas, IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas),
+    assertion(IterPorTurno == []),
+    assertion(IterTotal =:= 0),
+    assertion(Compras =:= 0),
+    assertion(Alquileres =:= 0),
+    assertion(Bancarrotas =:= 0).
+
 :- end_tests(monopoly).

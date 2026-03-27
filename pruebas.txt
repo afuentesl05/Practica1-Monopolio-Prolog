@@ -4,3 +4,8 @@
 ?- defensa_base.
 ?- defensa_dobles_y_carcel.
 ?- defensa_hipotecas.
+?- ejecutar_escenario(esc18, _).
+?- ejecutar_escenario(esc19, _).
+?- ejecutar_escenario(esc20, _).
+?- validar_patrimonio_casa_estable.
+?- defensa_casas_completa.
