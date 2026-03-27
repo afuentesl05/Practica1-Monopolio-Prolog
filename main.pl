@@ -283,7 +283,8 @@ update_dinero(Jugador, NuevoDinero, JugadorActualizado) :-
 
 add_prop(Jugador, PropId, JugadorActualizado) :-
     jugador_campos(Jugador, N, Pos, Din, Props, EstadoTurno),
-    jugador_reconstruir_como(Jugador, N, Pos, Din, [PropId | Props], EstadoTurno, JugadorActualizado).
+    PropNueva = titulo(PropId, no, 0),
+    jugador_reconstruir_como(Jugador, N, Pos, Din, [PropNueva | Props], EstadoTurno, JugadorActualizado).
 
 
 % =====================================
@@ -410,9 +411,58 @@ simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
 % HELPERS Compra y Alquiler
 % =====================================
 
+%% prop_normalizada(+PropRaw, -Titulo)
+%  Acepta:
+%  - átomo legacy: marron1
+%  - formato nuevo: titulo(Id, Hipotecada, Casas)
+%  y siempre devuelve formato canónico titulo/3.
+prop_normalizada(PropId, titulo(PropId, no, 0)) :-
+    atom(PropId),
+    !.
+prop_normalizada(titulo(PropId, Hipotecada, Casas),
+                 titulo(PropId, Hipotecada, Casas)).
+
+prop_campos(PropRaw, PropId, Hipotecada, Casas) :-
+    prop_normalizada(PropRaw, titulo(PropId, Hipotecada, Casas)).
+
+prop_id(PropRaw, PropId) :-
+    prop_campos(PropRaw, PropId, _Hipotecada, _Casas).
+
+prop_hipotecada(PropRaw) :-
+    prop_campos(PropRaw, _PropId, si, _Casas).
+
+reconstruir_prop(PropRaw, NuevoHipotecada, NuevasCasas, PropNueva) :-
+    prop_campos(PropRaw, PropId, _Hipotecada, _Casas),
+    PropNueva = titulo(PropId, NuevoHipotecada, NuevasCasas).
+
+props_ids([], []).
+props_ids([PropRaw | Resto], [PropId | IdsResto]) :-
+    prop_id(PropRaw, PropId),
+    props_ids(Resto, IdsResto).
+
+cartera_tiene_prop([], _PropId) :- fail.
+cartera_tiene_prop([PropRaw | _], PropId) :-
+    prop_id(PropRaw, PropId),
+    !.
+cartera_tiene_prop([_ | Resto], PropId) :-
+    cartera_tiene_prop(Resto, PropId).
+
+buscar_prop_en_cartera(PropId, [PropRaw | _], PropRaw) :-
+    prop_id(PropRaw, PropId),
+    !.
+buscar_prop_en_cartera(PropId, [_ | Resto], PropRaw) :-
+    buscar_prop_en_cartera(PropId, Resto, PropRaw).
+
+set_prop_en_cartera(PropId, [PropRaw | Resto], PropNueva, [PropNueva | Resto]) :-
+    prop_id(PropRaw, PropId),
+    !.
+set_prop_en_cartera(PropId, [X | Resto], PropNueva, [X | Resto2]) :-
+    set_prop_en_cartera(PropId, Resto, PropNueva, Resto2).
+
 propietario_de(PropId, [Jugador | _], Nombre, Jugador) :-
     jugador_campos(Jugador, Nombre, _Pos, _Din, Props, _EstadoTurno),
-    memberchk(PropId, Props), !.
+    cartera_tiene_prop(Props, PropId),
+    !.
 propietario_de(PropId, [_ | Resto], NombreProp, JugadorProp) :-
     propietario_de(PropId, Resto, NombreProp, JugadorProp).
 
@@ -507,11 +557,12 @@ tiene_todas([X | Xs], Lista) :-
 
 monopolio_color(Jugador, Tablero, Color) :-
     jugador_campos(Jugador, _Nombre, _Pos, _Din, Props, _EstadoTurno),
+    props_ids(Props, PropIdsJugador),
     colores_tablero(Tablero, Colores),
     member(Color, Colores),
     propiedades_color(Tablero, Color, PropsColor),
     PropsColor \= [],
-    tiene_todas(PropsColor, Props).
+    tiene_todas(PropsColor, PropIdsJugador).
 
 colores_monopolio_jugador(Jugador, Tablero, Colores) :-
     findall(Color,
@@ -832,7 +883,7 @@ turno_encarcelado_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
         cerrar_turno(EstadoReglas, NombreAct, no, EstadoOut),
         MOut = M3
     ).
-    
+
 turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     jugador_activo(EstadoIn, JugadorActivo),
     (   jugador_en_carcel(JugadorActivo, _TurnosRestantes)
@@ -861,7 +912,8 @@ valor_propiedad_tablero(PropId, Tablero, Precio) :-
     memberchk(propiedad(PropId, Precio, _Color), Tablero).
 
 valor_propiedades([], _Tablero, 0).
-valor_propiedades([PropId | Resto], Tablero, ValorTotal) :-
+valor_propiedades([PropRaw | Resto], Tablero, ValorTotal) :-
+    prop_id(PropRaw, PropId),
     valor_propiedad_tablero(PropId, Tablero, Precio),
     valor_propiedades(Resto, Tablero, ValorResto),
     ValorTotal is Precio + ValorResto.
