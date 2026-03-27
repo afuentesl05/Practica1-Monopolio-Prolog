@@ -16,6 +16,7 @@
 :- discontiguous estado_inicial/2.
 :- discontiguous tiradas_escenario/2.
 :- discontiguous acciones_escenario_explicitas/2.
+:- discontiguous ejecutar_accion_metricas/5.
 
 % ============================================================
 % IMPRESIÓN FORMATEADA
@@ -557,7 +558,7 @@ ejecutar_accion_metricas(intentar_construir_casa(Nombre, PropId), EstadoIn, Esta
     ;   EstadoOut = EstadoIn
     ).
 
-accion_turno(tirar(Tirada)).
+
 
 % ============================================================
 % EJECUCIÓN GENÉRICA DE ACCIONES
