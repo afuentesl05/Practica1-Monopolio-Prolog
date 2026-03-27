@@ -579,6 +579,85 @@ valor_titulo_cartera(PropRaw, Tablero, Valor) :-
 
 
 % =====================================
+% HELPERS DE CASAS
+% =====================================
+
+%% casas_propiedad_jugador(+Jugador, +PropId, -Casas)
+%  Obtiene el número de casas construidas sobre una propiedad del jugador.
+casas_propiedad_jugador(Jugador, PropId, Casas) :-
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    prop_campos(TituloProp, PropId, _Hipotecada, Casas).
+
+%% actualizar_casas_propiedad_jugador(+Jugador, +PropId, +NuevasCasas, -JugadorActualizado)
+%  Sustituye el número de casas de una propiedad concreta del jugador.
+actualizar_casas_propiedad_jugador(Jugador, PropId, NuevasCasas, JugadorActualizado) :-
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    prop_campos(TituloProp, PropId, Hipotecada, _CasasActuales),
+    reconstruir_prop(TituloProp, Hipotecada, NuevasCasas, TituloNuevo),
+    update_propiedad_jugador(Jugador, PropId, TituloNuevo, JugadorActualizado).
+
+%% propiedad_sin_hipoteca(+Jugador, +PropId)
+%  Verdadero si la propiedad del jugador no está hipotecada.
+propiedad_sin_hipoteca(Jugador, PropId) :-
+    titulo_propiedad_jugador(Jugador, PropId, TituloProp),
+    \+ prop_hipotecada(TituloProp).
+
+%% max_casas_propiedad(4).
+%  Límite elegido para esta fase: 0..4 casas.
+max_casas_propiedad(4).
+
+%% puede_construir_casa(+Jugador, +PropId, +Tablero)
+%  Precondiciones mínimas para construir una casa:
+%  - la propiedad pertenece al jugador
+%  - no está hipotecada
+%  - el jugador tiene monopolio del color
+%  - tiene menos de 4 casas
+puede_construir_casa(Jugador, PropId, Tablero) :-
+    titulo_propiedad_jugador(Jugador, PropId, _TituloProp),
+    propiedad_sin_hipoteca(Jugador, PropId),
+    color_propiedad(PropId, Tablero, Color),
+    monopolio_color(Jugador, Tablero, Color),
+    casas_propiedad_jugador(Jugador, PropId, Casas),
+    max_casas_propiedad(Max),
+    Casas < Max.
+
+%% puede_pagar_casa(+Jugador, +PropId, +Tablero)
+puede_pagar_casa(Jugador, PropId, Tablero) :-
+    coste_casa_propiedad(PropId, Tablero, Coste),
+    jugador_campos(Jugador, _Nombre, _Pos, Din, _Props, _EstadoTurno),
+    Din >= Coste.
+
+%% construir_casa(+EstadoIn, +NombreJugador, +PropId, -EstadoOut)
+%  Construye una casa sobre una propiedad concreta del jugador.
+%  Falla si no se cumplen las precondiciones.
+construir_casa(estado(Js, Tablero, Turno), NombreJugador, PropId,
+               estado(Js2, Tablero, Turno)) :-
+    get_jugador(NombreJugador, Js, Jugador),
+
+    puede_construir_casa(Jugador, PropId, Tablero),
+    puede_pagar_casa(Jugador, PropId, Tablero),
+
+    casas_propiedad_jugador(Jugador, PropId, Casas0),
+    Casas1 is Casas0 + 1,
+
+    coste_casa_propiedad(PropId, Tablero, Coste),
+    jugador_campos(Jugador, _N, _Pos, Din, _Props, _EstadoTurno),
+    Din2 is Din - Coste,
+
+    actualizar_casas_propiedad_jugador(Jugador, PropId, Casas1, J1),
+    update_dinero(J1, Din2, J2),
+
+    set_jugador(NombreJugador, Js, J2, Js2).
+
+%% construir_casa_activo(+EstadoIn, +PropId, -EstadoOut)
+construir_casa_activo(EstadoIn, PropId, EstadoOut) :-
+    jugador_activo(EstadoIn, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno),
+    construir_casa(EstadoIn, Nombre, PropId, EstadoOut).
+
+
+
+% =====================================
 % ISSUE 6 – REGLA 0 (COMPRA DE PROPIEDAD)
 % =====================================
 
@@ -1000,6 +1079,33 @@ simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, MetricasOu
     metricas_init(M0),
     length(ListaTiradas, N),
     simular_con_reglas_core(EstadoIn, ListaTiradas, N, EstadoOut, [], M0, MetricasOut).
+
+
+% =====================================
+% COSTE DE CASAS
+% =====================================
+
+%% coste_casa(+Color, -Coste)
+%  Coste de construir una casa según el grupo de color.
+coste_casa(marron,    50).
+coste_casa(celeste,   50).
+coste_casa(rosa,     100).
+coste_casa(naranja,  100).
+coste_casa(rojo,     150).
+coste_casa(amarillo, 150).
+coste_casa(verde,    200).
+coste_casa(azul,     200).
+
+%% color_propiedad(+PropId, +Tablero, -Color)
+%  Obtiene el color de una propiedad según el tablero.
+color_propiedad(PropId, Tablero, Color) :-
+    memberchk(propiedad(PropId, _Precio, Color), Tablero).
+
+%% coste_casa_propiedad(+PropId, +Tablero, -Coste)
+%  Obtiene el coste de construir una casa sobre una propiedad concreta.
+coste_casa_propiedad(PropId, Tablero, Coste) :-
+    color_propiedad(PropId, Tablero, Color),
+    coste_casa(Color, Coste).
 
 
 % =====================================
