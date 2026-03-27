@@ -47,6 +47,78 @@ estado_inicial(
 ) :-
     tablero_base(Tablero).
 
+
+% =====================================
+% PREPARACIÓN PARA DOBLES + CÁRCEL
+% =====================================
+
+/*
+Compatibilidad progresiva de jugador/4 -> jugador/5.
+
+Nuevo objetivo:
+- jugador(Nombre, Pos, Dinero, Props, EstadoTurno)
+
+Pero, para no romper el proyecto actual:
+- seguimos aceptando jugador/4
+- si un jugador aún no tiene EstadoTurno explícito, se asume:
+    estado_turno(libre, 0)
+
+EstadoTurno:
+- estado_turno(Libertad, DoblesSeguidos)
+- Libertad = libre ; carcel(TurnosRestantes)
+*/
+
+estado_turno_inicial(estado_turno(libre, 0)).
+
+%% jugador_campos(+Jugador, -Nombre, -Pos, -Din, -Props, -EstadoTurno)
+%  Extrae campos tanto de jugador/4 como de jugador/5.
+jugador_campos(jugador(N, Pos, Din, Props), N, Pos, Din, Props, EstadoTurno) :-
+    estado_turno_inicial(EstadoTurno).
+jugador_campos(jugador(N, Pos, Din, Props, EstadoTurno), N, Pos, Din, Props, EstadoTurno).
+
+%% jugador_reconstruir_como(+Original, +Nombre, +Pos, +Din, +Props, +EstadoTurno, -Nuevo)
+%  Reconstruye conservando la "forma" del original:
+%  - si Original era jugador/4, devuelve jugador/4
+%  - si Original era jugador/5, devuelve jugador/5
+%
+%  Esto evita romper escenarios y validaciones actuales mientras aún
+%  no usemos cárcel/dobles de forma activa.
+jugador_reconstruir_como(Original, N, Pos, Din, Props, EstadoTurno, Nuevo) :-
+    (   Original = jugador(_, _, _, _)
+    ->  Nuevo = jugador(N, Pos, Din, Props)
+    ;   Nuevo = jugador(N, Pos, Din, Props, EstadoTurno)
+    ).
+
+%% update_estado_turno(+Jugador, +NuevoEstadoTurno, -JugadorActualizado)
+%  Este sí fuerza la versión jugador/5, porque jugador/4 no puede almacenar estado de turno.
+update_estado_turno(Jugador, NuevoEstadoTurno,
+                    jugador(N, Pos, Din, Props, NuevoEstadoTurno)) :-
+    jugador_campos(Jugador, N, Pos, Din, Props, _).
+
+%% jugador_en_carcel(+Jugador, -TurnosRestantes)
+jugador_en_carcel(Jugador, TurnosRestantes) :-
+    jugador_campos(Jugador, _N, _Pos, _Din, _Props,
+                   estado_turno(carcel(TurnosRestantes), _Dobles)).
+
+%% dobles_seguidos_jugador(+Jugador, -Dobles)
+dobles_seguidos_jugador(Jugador, Dobles) :-
+    jugador_campos(Jugador, _N, _Pos, _Din, _Props,
+                   estado_turno(_Libertad, Dobles)).
+
+%% update_dobles_seguidos(+Jugador, +NuevoDobles, -JugadorActualizado)
+update_dobles_seguidos(Jugador, NuevoDobles, Jugador2) :-
+    jugador_campos(Jugador, _N, _Pos, _Din, _Props,
+                   estado_turno(Libertad, _Dobles)),
+    update_estado_turno(Jugador, estado_turno(Libertad, NuevoDobles), Jugador2).
+
+%% poner_en_carcel(+Jugador, +TurnosRestantes, -JugadorActualizado)
+poner_en_carcel(Jugador, TurnosRestantes, Jugador2) :-
+    update_estado_turno(Jugador, estado_turno(carcel(TurnosRestantes), 0), Jugador2).
+
+%% liberar_jugador(+Jugador, -JugadorActualizado)
+liberar_jugador(Jugador, Jugador2) :-
+    update_estado_turno(Jugador, estado_turno(libre, 0), Jugador2).
+
 % =====================================
 % ISSUE 2 – UTILIDADES DE ACTUALIZACIÓN
 % =====================================
@@ -68,8 +140,8 @@ Diseño para evitar choicepoints:
     Verdadero si Jugador es el jugador con ese Nombre dentro de la lista Jugadores.
     Determinista si el Nombre es único.
 */
-get_jugador(Nombre, [jugador(Nombre, Pos, Din, Props) | _],
-            jugador(Nombre, Pos, Din, Props)) :- !.
+get_jugador(Nombre, [Jugador | _], Jugador) :-
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno), !.
 get_jugador(Nombre, [_ | Resto], Jugador) :-
     get_jugador(Nombre, Resto, Jugador).
 
@@ -78,29 +150,33 @@ get_jugador(Nombre, [_ | Resto], Jugador) :-
     Sustituye al jugador con Nombre por JugadorNuevo, produciendo una nueva lista.
     Determinista si el Nombre es único.
 */
-set_jugador(Nombre, [jugador(Nombre, _, _, _) | Resto],
-            JugadorNuevo, [JugadorNuevo | Resto]) :- !.
+set_jugador(Nombre, [Jugador | Resto],
+            JugadorNuevo, [JugadorNuevo | Resto]) :-
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno), !.
 set_jugador(Nombre, [J | Resto], JugadorNuevo, [J | RestoNuevo]) :-
     set_jugador(Nombre, Resto, JugadorNuevo, RestoNuevo).
 
 /*
   update_pos(+Jugador, +NuevaPos, -JugadorActualizado)
 */
-update_pos(jugador(N, _Pos, Din, Props), NuevaPos,
-           jugador(N, NuevaPos, Din, Props)).
+update_pos(Jugador, NuevaPos, JugadorActualizado) :-
+    jugador_campos(Jugador, N, _Pos, Din, Props, EstadoTurno),
+    jugador_reconstruir_como(Jugador, N, NuevaPos, Din, Props, EstadoTurno, JugadorActualizado).
 
 /*
   update_dinero(+Jugador, +NuevoDinero, -JugadorActualizado)
 */
-update_dinero(jugador(N, Pos, _Din, Props), NuevoDinero,
-              jugador(N, Pos, NuevoDinero, Props)).
+update_dinero(Jugador, NuevoDinero, JugadorActualizado) :-
+    jugador_campos(Jugador, N, Pos, _Din, Props, EstadoTurno),
+    jugador_reconstruir_como(Jugador, N, Pos, NuevoDinero, Props, EstadoTurno, JugadorActualizado).
 
 /*
   add_prop(+Jugador, +PropId, -JugadorActualizado)
   Añade una propiedad.
 */
-add_prop(jugador(N, Pos, Din, Props), PropId,
-         jugador(N, Pos, Din, [PropId|Props])).
+add_prop(Jugador, PropId, JugadorActualizado) :-
+    jugador_campos(Jugador, N, Pos, Din, Props, EstadoTurno),
+    jugador_reconstruir_como(Jugador, N, Pos, Din, [PropId | Props], EstadoTurno, JugadorActualizado).
 
 
 % =====================================
@@ -195,9 +271,9 @@ mover(estado(Js, Tablero, Turno), Tirada,
       estado(Js2, Tablero, Turno), PasoSalida) :-
     integer(Tirada),
     Tirada >= 0,
-    length(Tablero, 40),                      % asegura mod 40 correcto (tablero fijo)
-    nth0(Turno, Js, Jugador),                 % Jugador de lista jugadores con indice Turno
-    Jugador = jugador(Nombre, Pos, Din, Props),
+    length(Tablero, 40),
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, Pos, Din, _Props, _EstadoTurno),
 
     Suma is Pos + Tirada,
     (   Suma >= 40
@@ -209,7 +285,8 @@ mover(estado(Js, Tablero, Turno), Tirada,
     ),
 
     NuevaPos is Suma mod 40,
-    Jugador2 = jugador(Nombre, NuevaPos, Din2, Props),
+    update_pos(Jugador, NuevaPos, Jtmp),
+    update_dinero(Jtmp, Din2, Jugador2),
 
     set_jugador(Nombre, Js, Jugador2, Js2).
 
@@ -277,9 +354,10 @@ simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
   Determina el propietario de PropId. Falla si nadie la posee.
   Determinista si la propiedad solo puede pertenecer a un jugador.
 */
-propietario_de(PropId, [jugador(Nombre,Pos,Din,Props)|_], Nombre, jugador(Nombre,Pos,Din,Props)) :-
+propietario_de(PropId, [Jugador | _], Nombre, Jugador) :-
+    jugador_campos(Jugador, Nombre, _Pos, _Din, Props, _EstadoTurno),
     memberchk(PropId, Props), !.
-propietario_de(PropId, [_|Resto], NombreProp, JugadorProp) :-
+propietario_de(PropId, [_ | Resto], NombreProp, JugadorProp) :-
     propietario_de(PropId, Resto, NombreProp, JugadorProp).
 
 /*
@@ -294,7 +372,8 @@ propiedad_sin_dueno(PropId, Jugadores) :-
   Obtiene la casilla donde está el jugador activo.
 */
 casilla_actual(estado(Js, Tablero, Turno), Casilla) :-
-    nth0(Turno, Js, jugador(_, Pos, _, _)),
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, _Nombre, Pos, _Din, _Props, _EstadoTurno),
     nth0(Pos, Tablero, Casilla).
 
 % =====================================
@@ -331,7 +410,7 @@ jugador_activo(estado(Js, _Tablero, Turno), Jugador) :-
 regla_compra(EstadoIn, EstadoOut) :-
     EstadoIn = estado(Js, Tablero, Turno),
     jugador_activo(EstadoIn, Jugador),
-    Jugador = jugador(Nombre, _Pos, Din, _Props),
+    jugador_campos(Jugador, Nombre, _Pos, Din, _Props, _EstadoTurno),
     casilla_actual(EstadoIn, Casilla),
 
     (   Casilla = propiedad(PropId, Precio, _),
@@ -383,20 +462,18 @@ alquiler_casilla(propiedad(_PropId, Precio, _), Alquiler) :-
 regla_alquiler(EstadoIn, EstadoOut) :-
     EstadoIn = estado(Js, Tablero, Turno),
     jugador_activo(EstadoIn, JugActual),
-    JugActual = jugador(NombreAct, _PosAct, DinAct, _PropsAct),
+    jugador_campos(JugActual, NombreAct, _PosAct, DinAct, _PropsAct, _EstadoTurnoAct),
     casilla_actual(EstadoIn, Casilla),
 
     (   Casilla = propiedad(PropId, _Precio, _),
         propietario_de(PropId, Js, NombreProp, JugProp),
         NombreProp \= NombreAct,
         alquiler_casilla(Casilla, Alq)
-    ->  % actualizar pagador
-        DinAct2 is DinAct - Alq,
+    ->  DinAct2 is DinAct - Alq,
         update_dinero(JugActual, DinAct2, JugAct2),
         set_jugador(NombreAct, Js, JugAct2, JsTmp),
 
-        % actualizar propietario
-        JugProp = jugador(NombreProp, _PosP, DinP, _PropsP),
+        jugador_campos(JugProp, NombreProp, _PosP, DinP, _PropsP, _EstadoTurnoProp),
         DinP2 is DinP + Alq,
         update_dinero(JugProp, DinP2, JugProp2),
         set_jugador(NombreProp, JsTmp, JugProp2, Js2),
@@ -457,7 +534,8 @@ tiene_todas([X | Xs], Lista) :-
   Verdadero si Jugador posee todas las propiedades del Color.
   Exige que exista al menos una propiedad de ese color.
 */
-monopolio_color(jugador(_Nombre, _Pos, _Din, Props), Tablero, Color) :-
+monopolio_color(Jugador, Tablero, Color) :-
+    jugador_campos(Jugador, _Nombre, _Pos, _Din, Props, _EstadoTurno),
     colores_tablero(Tablero, Colores),
     member(Color, Colores),
     propiedades_color(Tablero, Color, PropsColor),
@@ -507,7 +585,8 @@ La regla elimina iterativamente a todos los jugadores en bancarrota.
  jugador_en_bancarrota(+Jugador)
   Verdadero si el jugador tiene dinero negativo.
 */
-jugador_en_bancarrota(jugador(_Nombre, _Pos, Dinero, _Props)) :-
+jugador_en_bancarrota(Jugador) :-
+    jugador_campos(Jugador, _Nombre, _Pos, Dinero, _Props, _EstadoTurno),
     Dinero < 0.
 
 /*
@@ -972,11 +1051,12 @@ Representación de cada entrada del ranking:
   Construye una entrada del ranking y su clave de orden.
 */
 entrada_ranking(
-    jugador(Nombre, _Pos, Dinero, Props),
+    Jugador,
     Tablero,
     ranking(Nombre, Patrimonio, Dinero, ValorProps, NumProps),
     k(NegPatrimonio, NegDinero, Nombre)
 ) :-
+    jugador_campos(Jugador, Nombre, _Pos, Dinero, Props, _EstadoTurno),
     valor_propiedades(Props, Tablero, ValorProps),
     length(Props, NumProps),
     Patrimonio is Dinero + ValorProps,
