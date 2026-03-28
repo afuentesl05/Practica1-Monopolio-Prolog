@@ -1,6 +1,25 @@
-% =====================================
-% ISSUE 1 – REPRESENTACIÓN DEL ESTADO
-% =====================================
+% ===================================================================
+% Motor de Monopoly en Prolog
+%
+% Este archivo contiene el modelo principal del juego y el motor de
+% ejecución utilizado por el proyecto. La implementación mantiene la
+% compatibilidad con representaciones anteriores y añade soporte para:
+% - estado de turno del jugador (cárcel y dobles consecutivos)
+% - tiradas reales y tiradas legacy como enteros
+% - hipotecas y construcción de casas
+% - métricas, patrimonio y ranking dinámico
+%
+% Organización del archivo:
+% 1. Modelo de estado y compatibilidad
+% 2. Tablero y movimiento
+% 3. Helpers de propiedades, hipotecas y casas
+% 4. Reglas del juego y ejecución de turnos
+% 5. Métricas, valoración y ranking
+% ===================================================================
+
+% ===================================================================
+% 1. Modelo de estado
+% ===================================================================
 
 /*
 Representación formal del estado global del juego.
@@ -34,7 +53,8 @@ Estructuras base del modelo:
 - jugador(Nombre, Posicion, Dinero, Propiedades).
 */
 
-% Estado inicial mínimo para pruebas
+%% estado_inicial(-Estado)
+%  Provides the minimal initial state used in smoke tests and examples.
 estado_inicial(
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -47,9 +67,9 @@ estado_inicial(
     tablero_base(Tablero).
 
 
-% =====================================
-% PREPARACIÓN PARA DOBLES + CÁRCEL
-% =====================================
+% ===================================================================
+% 1.1 Compatibilidad del estado de turno del jugador
+% ===================================================================
 
 /*
 Compatibilidad progresiva de jugador/4 -> jugador/5.
@@ -67,6 +87,8 @@ EstadoTurno:
 - Libertad = libre ; carcel(TurnosRestantes)
 */
 
+%% estado_turno_inicial(-EstadoTurno)
+%  Default turn state for players represented without jail metadata.
 estado_turno_inicial(estado_turno(libre, 0)).
 
 %% jugador_campos(+Jugador, -Nombre, -Pos, -Din, -Props, -EstadoTurno)
@@ -116,9 +138,9 @@ liberar_jugador(Jugador, Jugador2) :-
     update_estado_turno(Jugador, estado_turno(libre, 0), Jugador2).
 
 
-% =====================================
-% SOPORTE DE TIRADAS REALES
-% =====================================
+% ===================================================================
+% 1.2 Representación de tiradas y helpers de cárcel
+% ===================================================================
 
 /*
 Compatibilidad:
@@ -130,6 +152,8 @@ Importante:
 - Un entero NO se considera doble, para no romper escenarios antiguos.
 */
 
+%% valor_tirada(+TiradaRaw, -Valor)
+%  Normalises a legacy integer roll or tirada/2 into its total advance.
 valor_tirada(Tirada, Tirada) :-
     integer(Tirada),
     Tirada >= 0,
@@ -139,10 +163,14 @@ valor_tirada(tirada(D1, D2), Valor) :-
     integer(D2), D2 >= 0,
     Valor is D1 + D2.
 
+%% es_doble(+Tirada)
+%  True when a real dice roll contains two equal dice.
 es_doble(tirada(D, D)) :-
     integer(D),
     D >= 0.
 
+%% posicion_carcel(-Posicion)
+%  Board position used for the jail square.
 posicion_carcel(10).
 
 /*
@@ -246,9 +274,9 @@ cobrar_a_activo(
 coste_salida_carcel(50).
 
 
-% =====================================
-% ISSUE 2 – UTILIDADES DE ACTUALIZACIÓN
-% =====================================
+% ===================================================================
+% 1.3 Helpers de actualización de jugadores
+% ===================================================================
 
 /*
 Capa funcional de acceso/actualización.
@@ -287,9 +315,9 @@ add_prop(Jugador, PropId, JugadorActualizado) :-
     jugador_reconstruir_como(Jugador, N, Pos, Din, [PropNueva | Props], EstadoTurno, JugadorActualizado).
 
 
-% =====================================
-% ISSUE 3 – TABLERO BASE (40 CASILLAS)
-% =====================================
+% ===================================================================
+% 2. Modelo del tablero
+% ===================================================================
 
 /*
 Representación homogénea de casillas:
@@ -347,16 +375,21 @@ tablero_base([
 ]).
 
 
-% =====================================
-% ISSUE 4 – MOVIMIENTO SOBRE EL TABLERO
-% =====================================
+% ===================================================================
+% 2.1 Movimiento y avance del turno
+% ===================================================================
 
+%% bonus_salida(-Cantidad)
+%  Amount awarded when a player passes through the start square.
 bonus_salida(200).
 
 /*
   mover(+EstadoIn, +Tirada, -EstadoOut, -PasoSalida)
   Aplica la Tirada al jugador activo (según Turno).
 */
+%% mover(+EstadoIn, +TiradaRaw, -EstadoOut, -PasoSalida)
+%  Moves the active player and applies the start bonus if the player
+%  wraps around the board.
 mover(estado(Js, Tablero, Turno), TiradaRaw,
       estado(Js2, Tablero, Turno), PasoSalida) :-
     valor_tirada(TiradaRaw, Tirada),
@@ -379,6 +412,8 @@ mover(estado(Js, Tablero, Turno), TiradaRaw,
 
     set_jugador(Nombre, Js, Jugador2, Js2).
 
+%% avanzar_turno(+EstadoIn, -EstadoOut)
+%  Advances the active player index modulo the current player count.
 avanzar_turno(estado(Js, Tablero, Turno),
               estado(Js, Tablero, Turno2)) :-
     length(Js, N),
@@ -386,10 +421,12 @@ avanzar_turno(estado(Js, Tablero, Turno),
     Turno2 is (Turno + 1) mod N.
 
 
-% =====================================
-% ISSUE 5 – ITERACIÓN POR TURNOS
-% =====================================
+% ===================================================================
+% 2.2 Iteración básica de turnos
+% ===================================================================
 
+%% turno_base(+EstadoIn, +Tirada, -EstadoOut)
+%  Executes a basic turn without applying the extended rule engine.
 turno_base(EstadoIn, Tirada, EstadoOut) :-
     mover(EstadoIn, Tirada, EstadoMov, _PasoSalida),
     avanzar_turno(EstadoMov, EstadoOut).
@@ -402,14 +439,16 @@ simular(EstadoIn, [T|Ts], N, EstadoOut, TiradasRestantes) :-
     N1 is N - 1,
     simular(EstadoNext, Ts, N1, EstadoOut, TiradasRestantes).
 
+%% simular_movimientos(+EstadoIn, +ListaTiradas, -EstadoOut)
+%  Runs a full list of basic turns in sequence.
 simular_movimientos(EstadoIn, ListaTiradas, EstadoOut) :-
     length(ListaTiradas, N),
     simular(EstadoIn, ListaTiradas, N, EstadoOut, []).
 
 
-% =====================================
-% HELPERS Compra y Alquiler
-% =====================================
+% ===================================================================
+% 3. Helpers de propiedades
+% ===================================================================
 
 %% prop_normalizada(+PropRaw, -Titulo)
 %  Acepta:
@@ -422,6 +461,8 @@ prop_normalizada(PropId, titulo(PropId, no, 0)) :-
 prop_normalizada(titulo(PropId, Hipotecada, Casas),
                  titulo(PropId, Hipotecada, Casas)).
 
+%% prop_campos(+PropRaw, -PropId, -Hipotecada, -Casas)
+%  Extracts the canonical fields of a property title.
 prop_campos(PropRaw, PropId, Hipotecada, Casas) :-
     prop_normalizada(PropRaw, titulo(PropId, Hipotecada, Casas)).
 
@@ -477,6 +518,8 @@ propiedad_hipotecada_jugador(Jugador, PropId) :-
     prop_hipotecada(TituloProp).
 
 
+%% propietario_de(+PropId, +Jugadores, -Nombre, -Jugador)
+%  Finds the owner of a property in the current player list.
 propietario_de(PropId, [Jugador | _], Nombre, Jugador) :-
     jugador_campos(Jugador, Nombre, _Pos, _Din, Props, _EstadoTurno),
     cartera_tiene_prop(Props, PropId),
@@ -487,6 +530,8 @@ propietario_de(PropId, [_ | Resto], NombreProp, JugadorProp) :-
 propiedad_sin_dueno(PropId, Jugadores) :-
     \+ propietario_de(PropId, Jugadores, _Nombre, _Jugador).
 
+%% casilla_actual(+Estado, -Casilla)
+%  Retrieves the board square currently occupied by the active player.
 casilla_actual(estado(Js, Tablero, Turno), Casilla) :-
     nth0(Turno, Js, Jugador),
     jugador_campos(Jugador, _Nombre, Pos, _Din, _Props, _EstadoTurno),
@@ -585,9 +630,9 @@ valor_titulo_cartera(PropRaw, Tablero, Valor) :-
     Valor is ValorTitulo + ValorCasas.
 
 
-% =====================================
-% HELPERS DE CASAS
-% =====================================
+% ===================================================================
+% 3.1 Helpers de construcción de casas
+% ===================================================================
 
 %% casas_propiedad_jugador(+Jugador, +PropId, -Casas)
 %  Obtiene el número de casas construidas sobre una propiedad del jugador.
@@ -664,13 +709,21 @@ construir_casa_activo(EstadoIn, PropId, EstadoOut) :-
 
 
 
-% =====================================
-% ISSUE 6 – REGLA 0 (COMPRA DE PROPIEDAD)
-% =====================================
+% ===================================================================
+% 4. Reglas del juego
+% ===================================================================
 
+% -------------------------------------------------------------------
+% 4.1 Regla de compra
+% -------------------------------------------------------------------
+
+%% jugador_activo(+Estado, -Jugador)
+%  Retrieves the active player term from the state.
 jugador_activo(estado(Js, _Tablero, Turno), Jugador) :-
     nth0(Turno, Js, Jugador).
 
+%% regla_compra(+EstadoIn, -EstadoOut)
+%  Purchases an unowned property when the active player can afford it.
 regla_compra(EstadoIn, EstadoOut) :-
     EstadoIn = estado(Js, Tablero, Turno),
     jugador_activo(EstadoIn, Jugador),
@@ -690,13 +743,15 @@ regla_compra(EstadoIn, EstadoOut) :-
     !.
 
 
-% =====================================
-% ISSUE 7 – REGLA 1 (ALQUILER)
-% =====================================
+% -------------------------------------------------------------------
+% 4.2 Regla de alquiler
+% -------------------------------------------------------------------
 
 alquiler_casilla(propiedad(_PropId, Precio, _), Alquiler) :-
     Alquiler is Precio // 10.
 
+%% regla_alquiler(+EstadoIn, -EstadoOut)
+%  Transfers rent from the active player to the owner of the square.
 regla_alquiler(EstadoIn, EstadoOut) :-
     EstadoIn = estado(Js, Tablero, Turno),
     jugador_activo(EstadoIn, JugActual),
@@ -722,9 +777,9 @@ regla_alquiler(EstadoIn, EstadoOut) :-
     !.
 
 
-% =====================================
-% ALQUILER DEPENDIENTE DE CASAS
-% =====================================
+% -------------------------------------------------------------------
+% 4.3 Escalado del alquiler por casas
+% -------------------------------------------------------------------
 
 %% alquiler_base_propiedad(+PropId, +Tablero, -AlquilerBase)
 %  Alquiler base de una propiedad sin casas.
@@ -752,9 +807,9 @@ alquiler_propiedad_jugador(JugadorProp, PropId, Tablero, Alquiler) :-
     factor_alquiler_casas(Casas, Factor),
     Alquiler is AlquilerBase * Factor.
 
-% =====================================
-% ISSUE 10 – REGLA 2 (MONOPOLIO)
-% =====================================
+% -------------------------------------------------------------------
+% 4.4 Detección de monopolio
+% -------------------------------------------------------------------
 
 propiedades_color([], _Color, []).
 propiedades_color([propiedad(PropId, _Precio, Color) | Resto], Color, [PropId | PropsColor]) :-
@@ -774,6 +829,8 @@ tiene_todas([X | Xs], Lista) :-
     memberchk(X, Lista),
     tiene_todas(Xs, Lista).
 
+%% monopolio_color(+Jugador, +Tablero, -Color)
+%  True when the player owns every property of a colour group.
 monopolio_color(Jugador, Tablero, Color) :-
     jugador_campos(Jugador, _Nombre, _Pos, _Din, Props, _EstadoTurno),
     props_ids(Props, PropIdsJugador),
@@ -793,12 +850,15 @@ jugador_activo_monopolios(estado(Js, Tablero, Turno), Colores) :-
     nth0(Turno, Js, Jugador),
     colores_monopolio_jugador(Jugador, Tablero, Colores).
 
+%% regla_monopolio(+EstadoIn, -EstadoOut)
+%  Placeholder rule kept for compatibility; monopoly information is
+%  derived analytically rather than mutating the state.
 regla_monopolio(Estado, Estado).
 
 
-% =====================================
-% ISSUE 11 – REGLA 3 (BANCARROTA)
-% =====================================
+% -------------------------------------------------------------------
+% 4.5 Gestión de bancarrota
+% -------------------------------------------------------------------
 
 jugador_en_bancarrota(Jugador) :-
     jugador_campos(Jugador, _Nombre, _Pos, Dinero, _Props, _EstadoTurno),
@@ -843,6 +903,9 @@ aplicar_bancarrota_una_pasada(EstadoIn, EstadoOut) :-
     ;   EstadoOut = EstadoIn
     ).
 
+%% regla_bancarrota(+EstadoIn, -EstadoOut)
+%  Repeatedly removes players whose balance is below zero until the
+%  state stabilises.
 regla_bancarrota(EstadoIn, EstadoOut) :-
     regla_bancarrota_aux(EstadoIn, EstadoOut),
     !.
@@ -855,9 +918,9 @@ regla_bancarrota_aux(EstadoActual, EstadoFinal) :-
     ).
 
 
-% =====================================
-% ISSUE 8 – MOTOR ITERATIVO DE REGLAS
-% =====================================
+% -------------------------------------------------------------------
+% 4.6 Motor de reglas
+% -------------------------------------------------------------------
 
 /*
 Motor iterativo de reglas:
@@ -867,6 +930,8 @@ Motor iterativo de reglas:
 
 max_iter_reglas(10).
 
+%% resolver_evento_casilla(+EstadoIn, -EstadoOut)
+%  Resolves purchase, rent and special-square effects without metrics.
 resolver_evento_casilla(EstadoIn, EstadoOut) :-
     metricas_init(M0),
     resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, _).
@@ -878,12 +943,17 @@ aplicar_reglas_una_pasada(EstadoIn, EstadoOut) :-
 /*
  IterUsadas = número de pasadas ejecutadas.
 */
+%% aplicar_reglas_hasta_estable(+EstadoIn, +MaxIter, -EstadoOut, -IterUsadas)
+%  Applies derived rules until the state stops changing or the
+%  iteration limit is reached.
 aplicar_reglas_hasta_estable(EstadoIn, MaxIter, EstadoOut, IterUsadas) :-
     metricas_init(M0),
     aplicar_reglas_hasta_estable_metricas(
         EstadoIn, MaxIter, EstadoOut, IterUsadas, M0, _
     ).
 
+%% turno_con_reglas(+EstadoIn, +Tirada, -EstadoOut)
+%  Executes a full turn through the rule engine without exposing metrics.
 turno_con_reglas(EstadoIn, Tirada, EstadoOut) :-
     metricas_init(M0),
     turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, _).
@@ -899,6 +969,8 @@ simular_con_reglas_core(EstadoIn, [T | Ts], N, EstadoOut, TiradasRestantes, M0, 
     N1 is N - 1,
     simular_con_reglas_core(EstadoNext, Ts, N1, EstadoOut, TiradasRestantes, M1, MOut).
 
+%% simular_con_reglas(+EstadoIn, +Tiradas, +N, -EstadoOut, -TiradasRestantes)
+%  Runs N turns using the complete rule engine.
 simular_con_reglas(EstadoIn, Tiradas, N, EstadoOut, TiradasRestantes) :-
     metricas_init(M0),
     simular_con_reglas_core(EstadoIn, Tiradas, N, EstadoOut, TiradasRestantes, M0, _).
@@ -907,20 +979,24 @@ simular_movimientos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
     simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, _).
 
 
-% =====================================
-% ISSUE 9 – INTEGRACIÓN REGLAS + TURNO
-% =====================================
+% -------------------------------------------------------------------
+% 4.7 API pública de ejecución de turnos
+% -------------------------------------------------------------------
 
+%% ejecutar_turno(+EstadoIn, +Tirada, -EstadoOut)
+%  Public alias kept for the main turn predicate.
 ejecutar_turno(EstadoIn, Tirada, EstadoOut) :-
     turno_con_reglas(EstadoIn, Tirada, EstadoOut).
 
+%% simular_turnos_con_reglas(+EstadoIn, +ListaTiradas, -EstadoOut)
+%  Executes a complete sequence of turns with all game rules enabled.
 simular_turnos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
     simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, _).
 
 
-% =====================================
-% ISSUE 17 – MEJORA 1: ITERACIÓN + MÉTRICAS
-% =====================================
+% ===================================================================
+% 5. Métricas y helpers analíticos
+% ===================================================================
 
 /*
 Métricas del motor.
@@ -929,6 +1005,8 @@ Representación:
 - metricas(IterPorTurnoRev, IterTotal, Compras, Alquileres, Bancarrotas)
 */
 
+%% metricas_init(-Metricas)
+%  Creates the empty metric accumulator used by the instrumented engine.
 metricas_init(metricas([], 0, 0, 0, 0)).
 
 metricas_inc_compras(
@@ -1034,6 +1112,8 @@ resolver_evento_especial_metricas(EstadoIn, M, EstadoOut, M) :-
 
 
 
+%% turno_normal_metricas(+EstadoIn, +Tirada, +M0, -EstadoOut, -MOut)
+%  Executes a full non-jail turn while updating engine metrics.
 turno_normal_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     jugador_activo(EstadoIn, JugadorActivo),
     jugador_campos(JugadorActivo, NombreAct, _Pos, _Din, _Props, _EstadoTurno),
@@ -1065,6 +1145,8 @@ turno_normal_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
         MOut = M3
     ).
 
+%% turno_encarcelado_metricas(+EstadoIn, +Tirada, +M0, -EstadoOut, -MOut)
+%  Executes the branch of a turn where the active player starts in jail.
 turno_encarcelado_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     jugador_activo(EstadoIn, JugadorActivo),
     jugador_campos(JugadorActivo, NombreAct, _Pos, _Din, _Props,
@@ -1103,6 +1185,8 @@ turno_encarcelado_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
         MOut = M3
     ).
 
+%% turno_con_reglas_metricas(+EstadoIn, +Tirada, +M0, -EstadoOut, -MOut)
+%  Main instrumented turn predicate used by the rest of the project.
 turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     jugador_activo(EstadoIn, JugadorActivo),
     (   jugador_en_carcel(JugadorActivo, _TurnosRestantes)
@@ -1110,15 +1194,17 @@ turno_con_reglas_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut) :-
     ;   turno_normal_metricas(EstadoIn, Tirada, M0, EstadoOut, MOut)
     ).
 
+%% simular_turnos_con_reglas_metricas(+EstadoIn, +ListaTiradas, -EstadoOut, -MetricasOut)
+%  Runs a full sequence of turns and returns the accumulated metrics.
 simular_turnos_con_reglas_metricas(EstadoIn, ListaTiradas, EstadoOut, MetricasOut) :-
     metricas_init(M0),
     length(ListaTiradas, N),
     simular_con_reglas_core(EstadoIn, ListaTiradas, N, EstadoOut, [], M0, MetricasOut).
 
 
-% =====================================
-% COSTE DE CASAS
-% =====================================
+% -------------------------------------------------------------------
+% 5.1 Valoración de casas
+% -------------------------------------------------------------------
 
 %% coste_casa(+Color, -Coste)
 %  Coste de construir una casa según el grupo de color.
@@ -1149,9 +1235,9 @@ valor_casas_propiedad(PropId, NumCasas, Tablero, ValorCasas) :-
     ValorCasas is NumCasas * CosteCasa.
 
 
-% =====================================
-% ISSUE 18 – MEJORA 2: PATRIMONIO + RANKING DINÁMICO
-% =====================================
+% -------------------------------------------------------------------
+% 5.2 Patrimonio y ranking
+% -------------------------------------------------------------------
 
 /*
 Patrimonio total de un jugador.
@@ -1169,6 +1255,8 @@ valor_propiedades([PropRaw | Resto], Tablero, ValorTotal) :-
     valor_propiedades(Resto, Tablero, ValorResto),
     ValorTotal is ValorProp + ValorResto.
 
+%% patrimonio_jugador(+Jugador, +Tablero, -Patrimonio)
+%  Computes cash plus current portfolio value for one player.
 patrimonio_jugador(Jugador, Tablero, Patrimonio) :-
     jugador_campos(Jugador, _Nombre, _Pos, Dinero, Props, _EstadoTurno),
     valor_propiedades(Props, Tablero, ValorProps),
@@ -1209,6 +1297,8 @@ extraer_entradas_ranking([], []).
 extraer_entradas_ranking([_Clave-Entrada | Resto], [Entrada | RankingResto]) :-
     extraer_entradas_ranking(Resto, RankingResto).
 
+%% ranking_jugadores(+Estado, -Ranking)
+%  Produces the final ranking ordered by patrimony, cash and name.
 ranking_jugadores(estado(Js, Tablero, _Turno), Ranking) :-
     construir_pares_ranking(Js, Tablero, Pares),
     keysort(Pares, ParesOrdenados),
