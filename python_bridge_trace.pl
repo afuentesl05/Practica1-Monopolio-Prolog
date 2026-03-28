@@ -23,14 +23,16 @@ estado_python_a_estado_prolog(
 % ============================================================
 
 jugador_dict(
-    jugador(Nombre, Posicion, Dinero, Propiedades),
+    Jugador,
     _{
         nombre: Nombre,
         posicion: Posicion,
         dinero: Dinero,
-        propiedades: Propiedades
+        propiedades: PropIds
      }
-).
+) :-
+    jugador_campos(Jugador, Nombre, Posicion, Dinero, Propiedades, _EstadoTurno),
+    props_ids(Propiedades, PropIds).
 
 jugadores_dicts([], []).
 jugadores_dicts([J | R], [D | RD]) :-
@@ -63,16 +65,19 @@ metricas_dict(
 % ============================================================
 
 nombre_jugador_activo(estado(Js, _Tab, Turno), Nombre) :-
-    nth0(Turno, Js, jugador(Nombre, _, _, _)).
+    nth0(Turno, Js, Jugador),
+    jugador_campos(Jugador, Nombre, _Pos, _Din, _Props, _EstadoTurno).
 
 estado_jugador_por_nombre(estado(Js, _Tab, _Turno), Nombre, DictJugador) :-
-    member(jugador(Nombre, Pos, Din, Props), Js),
+    member(Jugador, Js),
+    jugador_campos(Jugador, Nombre, Pos, Din, Props, _EstadoTurno),
     !,
+    props_ids(Props, PropIds),
     DictJugador = _{
         nombre: Nombre,
         posicion: Pos,
         dinero: Din,
-        propiedades: Props,
+        propiedades: PropIds,
         eliminado: false
     }.
 estado_jugador_por_nombre(_Estado, Nombre, _{
@@ -81,19 +86,27 @@ estado_jugador_por_nombre(_Estado, Nombre, _{
 }).
 
 paso_dict(NumTurno, Tirada, NombreJugador, EstadoAntes, EstadoDespues, DictPaso) :-
+    tirada_json(Tirada, TiradaJson),
     estado_dict(EstadoAntes, EstadoAntesDict),
     estado_dict(EstadoDespues, EstadoDespuesDict),
     estado_jugador_por_nombre(EstadoAntes, NombreJugador, JugAntes),
     estado_jugador_por_nombre(EstadoDespues, NombreJugador, JugDespues),
     DictPaso = _{
         turno_num: NumTurno,
-        tirada: Tirada,
+        tirada: TiradaJson,
         jugador_activo: NombreJugador,
         jugador_antes: JugAntes,
         jugador_despues: JugDespues,
         estado_antes: EstadoAntesDict,
         estado_despues: EstadoDespuesDict
     }.
+
+tirada_json(Tirada, Tirada) :-
+    integer(Tirada),
+    !.
+tirada_json(tirada(D1, D2), Texto) :-
+    Total is D1 + D2,
+    format(atom(Texto), '~d+~d=~d', [D1, D2, Total]).
 
 % ============================================================
 % SIMULACIÓN CON TRAZA COMPLETA

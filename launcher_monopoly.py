@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import shutil
 import subprocess
 import time
 import re
@@ -17,6 +18,8 @@ DEFAULT_START_MONEY = 1500
 DEFAULT_NUM_PLAYERS = 2
 DEFAULT_NUM_ROLLS = 10
 BOARD_SIZE = 40
+MIN_CELL_WIDTH = 8
+MAX_CELL_WIDTH = 14
 
 
 # ============================================================
@@ -145,7 +148,7 @@ def short_name(nombre: str, max_len: int = 8) -> str:
 
 def jugador_token(nombre: str) -> str:
     nombre = nombre.strip().lower()
-    m = re.fullmatch(r"jugador(\\d+)", nombre)
+    m = re.fullmatch(r"jugador(\d+)", nombre)
     if m:
         return f"J{m.group(1)}"
     return nombre[:2].upper()
@@ -281,7 +284,14 @@ def render_tablero_ascii(estado: Estado, ancho_celda: int = 14) -> str:
             lineas_finales.append("|" + "|".join(celda[i] for celda in fila_celdas) + "|")
 
     lineas_finales.append(border)
-    return "\\n".join(lineas_finales)
+    return "\n".join(lineas_finales)
+
+
+def ancho_celda_terminal(default: int = MAX_CELL_WIDTH) -> int:
+    columnas = shutil.get_terminal_size(fallback=(180, 40)).columns
+    max_ancho_tablero = max(100, columnas - 2)
+    ancho = (max_ancho_tablero - 12) // 11
+    return max(MIN_CELL_WIDTH, min(default, ancho))
 
 
 def render_resumen_jugadores(estado: Estado) -> str:
@@ -292,11 +302,12 @@ def render_resumen_jugadores(estado: Estado) -> str:
         lineas.append(
             f"{j.nombre:<10} | Pos: {j.posicion:>2} | Dinero: {j.dinero:>5} | Props: {props}{activo}"
         )
-    return "\\n".join(lineas)
+    return "\n".join(lineas)
 
 
 def render_estado(estado: Estado) -> str:
-    return render_tablero_ascii(estado) + "\\n\\n" + render_resumen_jugadores(estado)
+    ancho = ancho_celda_terminal()
+    return render_tablero_ascii(estado, ancho_celda=ancho) + "\n\n" + render_resumen_jugadores(estado)
 
 
 # ============================================================
@@ -492,9 +503,9 @@ def ejecutar_traza_en_prolog(estado: Estado, tiradas: List[int]):
 
     if result.returncode != 0:
         return None, (
-            "Error al ejecutar Prolog.\\n"
-            f"STDOUT:\\n{result.stdout}\\n"
-            f"STDERR:\\n{result.stderr}"
+            "Error al ejecutar Prolog.\n"
+            f"STDOUT:\n{result.stdout}\n"
+            f"STDERR:\n{result.stderr}"
         )
 
     salida = result.stdout.strip()
@@ -505,7 +516,7 @@ def ejecutar_traza_en_prolog(estado: Estado, tiradas: List[int]):
         data = json.loads(salida)
         return data, ""
     except json.JSONDecodeError:
-        return None, f"La salida de Prolog no es JSON vÃ¡lido:\\n{salida}"
+        return None, f"La salida de Prolog no es JSON vÃ¡lido:\n{salida}"
 
 
 # ============================================================
@@ -553,7 +564,7 @@ def generar_tiradas_aleatorias(n: int, minimo: int = 1, maximo: int = 6) -> List
 
 
 def construir_escenario_personalizado():
-    print("\\n=== ESCENARIO PERSONALIZADO ===\\n")
+    print("\n=== ESCENARIO PERSONALIZADO ===\n")
 
     num_jugadores = leer_entero(
         f"NÃºmero de jugadores [{DEFAULT_NUM_PLAYERS}]: ",
@@ -569,7 +580,7 @@ def construir_escenario_personalizado():
 
     jugadores = []
     for i in range(num_jugadores):
-        print(f"\\nJugador {i+1}")
+        print(f"\nJugador {i+1}")
         nombre = f"jugador{i+1}"
         dinero = leer_entero(f"  Dinero [{dinero_default}]: ", minimo=0, default=dinero_default)
         posicion = leer_entero("  PosiciÃ³n [0]: ", minimo=0, maximo=39, default=0)
@@ -612,7 +623,7 @@ def reproducir_traza(data: dict):
     estado_final = estado_from_dict(data["estado_final"])
     metricas = data["metricas"]
 
-    print("\\nModo de reproducciÃ³n:")
+    print("\nModo de reproducciÃ³n:")
     print("1. Manual (Enter en cada turno)")
     print("2. AutomÃ¡tico")
     modo = input("Elige modo [1/2]: ").strip()
@@ -680,7 +691,7 @@ def ejecutar_simulacion(estado: Estado, tiradas: List[int]):
         print("-" * 80)
         for e in errores:
             print(f"- {e}")
-        input("\\nPulsa Enter para volver al menÃº...")
+        input("\nPulsa Enter para volver al menÃº...")
         return
 
     data, error = ejecutar_traza_en_prolog(estado, tiradas)
@@ -689,7 +700,7 @@ def ejecutar_simulacion(estado: Estado, tiradas: List[int]):
         print("ERROR")
         print("-" * 80)
         print(error)
-        input("\\nPulsa Enter para volver al menÃº...")
+        input("\nPulsa Enter para volver al menÃº...")
         return
 
     reproducir_traza(data)
@@ -716,7 +727,7 @@ def ejecutar_menu():
 
     while True:
         imprimir_menu()
-        opcion = input("\\nElige una opciÃ³n: ").strip()
+        opcion = input("\nElige una opciÃ³n: ").strip()
 
         if opcion == "1":
             clear_screen()
@@ -725,7 +736,7 @@ def ejecutar_menu():
             for i, esc in enumerate(escenarios, start=1):
                 print(f"{i}. {esc.nombre} -> {esc.descripcion}")
                 print(f"   Tiradas: {esc.tiradas}")
-            input("\\nPulsa Enter para volver al menÃº...")
+            input("\nPulsa Enter para volver al menÃº...")
 
         elif opcion == "2":
             clear_screen()
