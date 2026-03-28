@@ -114,13 +114,30 @@ tablero_ui_dicts([C | R], [D | RD]) :-
     tablero_ui_dicts(R, RD).
 
 estado_ui_dict(
-    estado(Js, _Tablero, Turno),
+    estado(Js, Tablero, Turno),
     _{
         jugadores: JsDict,
-        turno: Turno
+        turno: Turno,
+        ranking: RankingDict
      }
 ) :-
-    jugadores_ui_dicts(Js, JsDict).
+    jugadores_ui_dicts(Js, JsDict),
+    ranking_ui_dicts(estado(Js, Tablero, Turno), RankingDict).
+
+ranking_item_ui_dict(
+    ranking(Nombre, Patrimonio, Dinero, ValorProps, NumProps),
+    _{
+        nombre: Nombre,
+        patrimonio: Patrimonio,
+        dinero: Dinero,
+        valor_propiedades: ValorProps,
+        num_propiedades: NumProps
+     }
+).
+
+ranking_ui_dicts(Estado, RankingDicts) :-
+    ranking_jugadores(Estado, Ranking),
+    maplist(ranking_item_ui_dict, Ranking, RankingDicts).
 
 metricas_ui_dict(
     metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
