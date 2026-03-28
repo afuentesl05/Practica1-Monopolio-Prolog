@@ -1,7 +1,7 @@
-:- begin_tests(monopoly).
+﻿:- begin_tests(monopoly).
 
-:- [main].
-:- [scenarios].
+:- ensure_loaded('../main.pl').
+:- ensure_loaded('../scenarios.pl').
 
 % ============================================================
 % HELPERS DE TEST
@@ -29,7 +29,7 @@ metricas_resumen(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
     reverse(IterRev, IterPorTurno).
 
 % ============================================================
-% TESTS BÁSICOS DE TIRADAS
+% TESTS BÃSICOS DE TIRADAS
 % ============================================================
 
 test(valor_tirada_entero) :-
@@ -129,7 +129,7 @@ test(esc5_ranking_final) :-
     ]).
 
 % ============================================================
-% DOBLES Y CÁRCEL
+% DOBLES Y CÃRCEL
 % ============================================================
 
 test(esc6_doble_simple_repite_turno) :-

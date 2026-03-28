@@ -1,4 +1,4 @@
-:- consult('scenarios.pl').
+﻿:- ensure_loaded('../scenarios.pl').
 :- use_module(library(http/json)).
 :- use_module(library(lists)).
 
@@ -14,7 +14,7 @@ json_bool(false, false).
 json_null(null).
 
 % ============================================================
-% SERIALIZACIÓN CANÓNICA
+% SERIALIZACIÃ“N CANÃ“NICA
 % ============================================================
 
 estado_turno_ui_dict(
@@ -237,7 +237,7 @@ actor_accion(construir_casa(Nombre, _), _EstadoIn, Nombre).
 actor_accion(intentar_construir_casa(Nombre, _), _EstadoIn, Nombre).
 
 % ============================================================
-% EJECUCIÓN ROBUSTA DE ACCIONES
+% EJECUCIÃ“N ROBUSTA DE ACCIONES
 % ============================================================
 
 ejecutar_accion_ui_metricas(Accion, EstadoIn, EstadoOut, Resultado, M0, MOut) :-
@@ -337,7 +337,7 @@ resumen_paso_ui_dict(EstadoIn, EstadoOut, NombreActor, Resultado, Dict) :-
     }.
 
 % ============================================================
-% DELTA DE MÉTRICAS
+% DELTA DE MÃ‰TRICAS
 % ============================================================
 
 metricas_totales(
@@ -446,7 +446,7 @@ resultado_traza_ui_json(EstadoInicial, Pasos, EstadoFinal, Metricas, JSONAtom) :
     atom_json_dict(JSONAtom, Dict, []).
 
 % ============================================================
-% API PÚBLICA DEL BRIDGE
+% API PÃšBLICA DEL BRIDGE
 % ============================================================
 
 listar_escenarios_ui(JSONAtom) :-

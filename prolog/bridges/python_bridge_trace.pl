@@ -1,8 +1,8 @@
-:- consult('main.pl').
+﻿:- ensure_loaded('../main.pl').
 :- use_module(library(http/json)).
 
 % ============================================================
-% ADAPTACIÓN DEL ESTADO QUE LLEGA DESDE PYTHON
+% ADAPTACIÃ“N DEL ESTADO QUE LLEGA DESDE PYTHON
 % ============================================================
 
 estado_python_a_estado_prolog(
@@ -19,7 +19,7 @@ estado_python_a_estado_prolog(
     nonvar(Tablero).
 
 % ============================================================
-% SERIALIZACIÓN DE JUGADORES / ESTADOS / MÉTRICAS
+% SERIALIZACIÃ“N DE JUGADORES / ESTADOS / MÃ‰TRICAS
 % ============================================================
 
 jugador_dict(
@@ -109,7 +109,7 @@ tirada_json(tirada(D1, D2), Texto) :-
     format(atom(Texto), '~d+~d=~d', [D1, D2, Total]).
 
 % ============================================================
-% SIMULACIÓN CON TRAZA COMPLETA
+% SIMULACIÃ“N CON TRAZA COMPLETA
 % ============================================================
 
 simular_con_traza(EstadoInicial, Tiradas, EstadoFinal, Pasos, MetricasFinales) :-

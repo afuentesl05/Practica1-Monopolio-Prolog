@@ -1,4 +1,4 @@
-﻿:- consult('scenarios.pl').
+﻿:- ensure_loaded('../scenarios.pl').
 :- use_module(library(http/json)).
 :- use_module(library(random)).
 

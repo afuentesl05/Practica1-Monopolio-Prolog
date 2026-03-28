@@ -1,11 +1,11 @@
-import json
+﻿import json
 import random
 import subprocess
 from pathlib import Path
 
 
 class PrologBridgeClient:
-    def __init__(self, bridge_file: str = "bridge_trace_ui.pl"):
+    def __init__(self, bridge_file: str = "prolog/bridges/bridge_trace_ui.pl"):
         project_root = Path(__file__).resolve().parent.parent
         self.bridge_file = (project_root / bridge_file).resolve()
 
@@ -29,12 +29,12 @@ class PrologBridgeClient:
 
         output = result.stdout.strip()
         if not output:
-            raise RuntimeError("Prolog no devolvió salida.")
+            raise RuntimeError("Prolog no devolviÃ³ salida.")
 
         try:
             return json.loads(output)
         except json.JSONDecodeError as e:
-            raise RuntimeError(f"JSON inválido devuelto por Prolog:\n{output}") from e
+            raise RuntimeError(f"JSON invÃ¡lido devuelto por Prolog:\n{output}") from e
 
     def list_scenarios(self) -> list[dict]:
         goal = (

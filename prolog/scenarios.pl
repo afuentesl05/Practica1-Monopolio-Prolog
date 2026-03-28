@@ -1,25 +1,25 @@
-% ============================================================
-% scenarios.pl — Escenarios reproducibles y utilidades de inspección
+﻿% ============================================================
+% scenarios.pl â€” Escenarios reproducibles y utilidades de inspecciÃ³n
 %
 % Contenido:
 % - Escenarios del proyecto
-% - Impresión formateada del estado
-% - Visualización de monopolios, ranking, patrimonio y métricas
-% - Ejecución genérica de escenarios basados en tiradas o acciones
-% - Validaciones manuales útiles para defensa del proyecto
+% - ImpresiÃ³n formateada del estado
+% - VisualizaciÃ³n de monopolios, ranking, patrimonio y mÃ©tricas
+% - EjecuciÃ³n genÃ©rica de escenarios basados en tiradas o acciones
+% - Validaciones manuales Ãºtiles para defensa del proyecto
 %
-% Este archivo reutiliza la lógica definida en main.pl.
-% No añade reglas nuevas del juego.
+% Este archivo reutiliza la lÃ³gica definida en main.pl.
+% No aÃ±ade reglas nuevas del juego.
 % ============================================================
 
-:- [main].
+:- ensure_loaded('main.pl').
 :- discontiguous estado_inicial/2.
 :- discontiguous tiradas_escenario/2.
 :- discontiguous acciones_escenario_explicitas/2.
 :- discontiguous ejecutar_accion_metricas/5.
 
 % ============================================================
-% IMPRESIÓN FORMATEADA
+% IMPRESIÃ“N FORMATEADA
 % ============================================================
 
 mostrar_estado(estado(Jugadores, _Tablero, Turno)) :-
@@ -123,7 +123,7 @@ mostrar_acciones([Accion | Resto]) :-
     mostrar_acciones(Resto).
 
 % ============================================================
-% HELPERS DE INSPECCIÓN
+% HELPERS DE INSPECCIÃ“N
 % ============================================================
 
 resumen_jugadores(estado(Js, _, _), Js).
@@ -135,7 +135,7 @@ resumen_jugador(Estado, Nombre, Pos, Din, Props, Libertad, Dobles) :-
     jugador_campos(Jugador, Nombre, Pos, Din, Props, estado_turno(Libertad, Dobles)).
 
 % ============================================================
-% CATÁLOGO DE ESCENARIOS
+% CATÃLOGO DE ESCENARIOS
 % ============================================================
 
 escenario(esc1,  compras_iniciales,              'Compras iniciales y compatibilidad legacy').
@@ -177,7 +177,7 @@ listar_escenarios :-
 % ESCENARIOS DEL PROYECTO
 % ============================================================
 
-% esc1 — compras iniciales
+% esc1 â€” compras iniciales
 estado_inicial(esc1,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -191,7 +191,7 @@ estado_inicial(esc1,
 
 tiradas_escenario(esc1, [1,3,5,5]).
 
-% esc2 — monopolio formado con propiedades enriquecidas
+% esc2 â€” monopolio formado con propiedades enriquecidas
 estado_inicial(esc2,
     estado(
         [ jugador(ana, 0, 1380, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
@@ -205,7 +205,7 @@ estado_inicial(esc2,
 
 tiradas_escenario(esc2, [1]).
 
-% esc3 — bancarrota por alquiler
+% esc3 â€” bancarrota por alquiler
 estado_inicial(esc3,
     estado(
         [ jugador(ana, 0, 5, []),
@@ -219,7 +219,7 @@ estado_inicial(esc3,
 
 tiradas_escenario(esc3, [1]).
 
-% esc4 — alquileres consecutivos y simetricos
+% esc4 â€” alquileres consecutivos y simetricos
 estado_inicial(esc4,
     estado(
         [ jugador(ana, 0, 1340, [titulo(celeste2, no, 0), marron2]),
@@ -233,7 +233,7 @@ estado_inicial(esc4,
 
 tiradas_escenario(esc4, [1,3,5,5]).
 
-% esc5 — simulacion completa legacy de 10 turnos
+% esc5 â€” simulacion completa legacy de 10 turnos
 estado_inicial(esc5,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -247,7 +247,7 @@ estado_inicial(esc5,
 
 tiradas_escenario(esc5, [1,3,5,5,2,1,1,3,3,4]).
 
-% esc6 — doble simple
+% esc6 â€” doble simple
 estado_inicial(esc6,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -261,7 +261,7 @@ estado_inicial(esc6,
 
 tiradas_escenario(esc6, [tirada(3,3)]).
 
-% esc7 — tercer doble a carcel
+% esc7 â€” tercer doble a carcel
 estado_inicial(esc7,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -275,7 +275,7 @@ estado_inicial(esc7,
 
 tiradas_escenario(esc7, [tirada(1,1), tirada(2,2), tirada(3,3)]).
 
-% esc8 — caer en ir_carcel desde el movimiento
+% esc8 â€” caer en ir_carcel desde el movimiento
 estado_inicial(esc8,
     estado(
         [ jugador(ana, 27, 1500, []),
@@ -289,7 +289,7 @@ estado_inicial(esc8,
 
 tiradas_escenario(esc8, [3]).
 
-% esc9 — jugador encarcelado que no sale por no sacar doble
+% esc9 â€” jugador encarcelado que no sale por no sacar doble
 estado_inicial(esc9,
     estado(
         [ jugador(ana, 10, 1500, [], estado_turno(carcel(3), 0)),
@@ -303,7 +303,7 @@ estado_inicial(esc9,
 
 tiradas_escenario(esc9, [tirada(2,3)]).
 
-% esc10 — jugador encarcelado sale por doble y no repite
+% esc10 â€” jugador encarcelado sale por doble y no repite
 estado_inicial(esc10,
     estado(
         [ jugador(ana, 10, 1500, [], estado_turno(carcel(3), 0)),
@@ -317,7 +317,7 @@ estado_inicial(esc10,
 
 tiradas_escenario(esc10, [tirada(1,1)]).
 
-% esc11 — tercer intento fallido paga 50 y sale
+% esc11 â€” tercer intento fallido paga 50 y sale
 estado_inicial(esc11,
     estado(
         [ jugador(ana, 10, 1500, [], estado_turno(carcel(1), 0)),
@@ -331,7 +331,7 @@ estado_inicial(esc11,
 
 tiradas_escenario(esc11, [tirada(2,3)]).
 
-% esc12 — hipoteca básica
+% esc12 â€” hipoteca bÃ¡sica
 estado_inicial(esc12,
     estado(
         [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
@@ -345,7 +345,7 @@ estado_inicial(esc12,
 
 acciones_escenario_explicitas(esc12, [hipotecar(ana, marron1)]).
 
-% esc13 — hipoteca y deshipoteca
+% esc13 â€” hipoteca y deshipoteca
 estado_inicial(esc13,
     estado(
         [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
@@ -359,7 +359,7 @@ estado_inicial(esc13,
 
 acciones_escenario_explicitas(esc13, [hipotecar(ana, marron1), deshipotecar(ana, marron1)]).
 
-% esc14 — una propiedad hipotecada no cobra alquiler
+% esc14 â€” una propiedad hipotecada no cobra alquiler
 estado_inicial(esc14,
     estado(
         [ jugador(ana, 0, 1500, []),
@@ -373,7 +373,7 @@ estado_inicial(esc14,
 
 tiradas_escenario(esc14, [1]).
 
-% esc15 — bancarrota al pagar salida de carcel
+% esc15 â€” bancarrota al pagar salida de carcel
 estado_inicial(esc15,
     estado(
         [ jugador(ana, 10, 40, [], estado_turno(carcel(1), 0)),
@@ -387,7 +387,7 @@ estado_inicial(esc15,
 
 tiradas_escenario(esc15, [tirada(2,3)]).
 
-% esc16 — patrimonio estable al hipotecar
+% esc16 â€” patrimonio estable al hipotecar
 estado_inicial(esc16,
     estado(
         [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
@@ -401,7 +401,7 @@ estado_inicial(esc16,
 
 acciones_escenario_explicitas(esc16, [hipotecar(ana, marron1)]).
 
-% esc17 — patrimonio baja al deshipotecar por el coste extra
+% esc17 â€” patrimonio baja al deshipotecar por el coste extra
 estado_inicial(esc17,
     estado(
         [ jugador(ana, 1, 1440, [titulo(marron1, no, 0)]),
@@ -416,7 +416,7 @@ estado_inicial(esc17,
 acciones_escenario_explicitas(esc17, [hipotecar(ana, marron1), deshipotecar(ana, marron1)]).
 
 
-% esc18 — construccion basica de una casa
+% esc18 â€” construccion basica de una casa
 estado_inicial(esc18,
     estado(
         [ jugador(ana, 0, 1380, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
@@ -430,7 +430,7 @@ estado_inicial(esc18,
 
 acciones_escenario_explicitas(esc18, [construir_casa(ana, marron1)]).
 
-% esc19 — alquiler con una casa
+% esc19 â€” alquiler con una casa
 % Bob ya tiene monopolio marron y 1 casa en marron1.
 % Ana cae en marron1 y paga alquiler aumentado.
 estado_inicial(esc19,
@@ -446,7 +446,7 @@ estado_inicial(esc19,
 
 tiradas_escenario(esc19, [1]).
 
-% esc20 — alquiler con dos casas
+% esc20 â€” alquiler con dos casas
 % Bob ya tiene monopolio marron y 2 casas en marron1.
 % Ana cae en marron1 y paga alquiler mas alto.
 estado_inicial(esc20,
@@ -462,7 +462,7 @@ estado_inicial(esc20,
 
 tiradas_escenario(esc20, [1]).
 
-% esc21 — patrimonio estable al construir una casa
+% esc21 â€” patrimonio estable al construir una casa
 % Mismo estado base que esc18, pero se usa para defender patrimonio/ranking.
 estado_inicial(esc21,
     estado(
@@ -478,7 +478,7 @@ estado_inicial(esc21,
 acciones_escenario_explicitas(esc21, [construir_casa(ana, marron1)]).
 
 
-% esc22 — intento de construccion sin monopolio
+% esc22 â€” intento de construccion sin monopolio
 estado_inicial(esc22,
     estado(
         [ jugador(ana, 0, 1440, [titulo(marron1, no, 0)]),
@@ -493,7 +493,7 @@ estado_inicial(esc22,
 acciones_escenario_explicitas(esc22, [intentar_construir_casa(ana, marron1)]).
 
 
-% esc23 — intento de construccion sobre propiedad hipotecada
+% esc23 â€” intento de construccion sobre propiedad hipotecada
 estado_inicial(esc23,
     estado(
         [ jugador(ana, 0, 1410, [titulo(marron2, no, 0), titulo(marron1, si, 0)]),
@@ -508,7 +508,7 @@ estado_inicial(esc23,
 acciones_escenario_explicitas(esc23, [intentar_construir_casa(ana, marron1)]).
 
 
-% esc24 — intento de construccion sin dinero suficiente
+% esc24 â€” intento de construccion sin dinero suficiente
 estado_inicial(esc24,
     estado(
         [ jugador(ana, 0, 40, [titulo(marron2, no, 0), titulo(marron1, no, 0)]),
@@ -523,7 +523,7 @@ estado_inicial(esc24,
 acciones_escenario_explicitas(esc24, [intentar_construir_casa(ana, marron1)]).
 
 
-% esc25 — intento de construccion con maximo de casas alcanzado
+% esc25 â€” intento de construccion con maximo de casas alcanzado
 estado_inicial(esc25,
     estado(
         [ jugador(ana, 0, 1330, [titulo(marron2, no, 0), titulo(marron1, no, 4)]),
@@ -561,7 +561,7 @@ ejecutar_accion_metricas(intentar_construir_casa(Nombre, PropId), EstadoIn, Esta
 
 
 % ============================================================
-% EJECUCIÓN GENÉRICA DE ACCIONES
+% EJECUCIÃ“N GENÃ‰RICA DE ACCIONES
 % ============================================================
 
 ejecutar_acciones_metricas(Estado, [], Estado, M, M) :- !.
@@ -584,7 +584,7 @@ ejecutar_accion_metricas(deshipotecar(Nombre, PropId), EstadoIn, EstadoOut, M, M
 
 
 % ============================================================
-% EJECUCIÓN GENERAL DE ESCENARIOS
+% EJECUCIÃ“N GENERAL DE ESCENARIOS
 % ============================================================
 
 resolver_escenario(IdEscenario, EstadoFinal) :-
@@ -651,7 +651,7 @@ ejecutar_todos_escenarios :-
            ( ejecutar_escenario(Id, _), nl )).
 
 % ============================================================
-% VALIDACIONES MANUALES RÁPIDAS
+% VALIDACIONES MANUALES RÃPIDAS
 % ============================================================
 
 validar_mover_basico :-
@@ -876,7 +876,7 @@ validar_no_construye_mas_de_cuatro :-
     ),
     writeln('================================').
 
-% Alias útiles para defensa en vivo
+% Alias Ãºtiles para defensa en vivo
 
 defensa_base :-
     ejecutar_escenario(esc1, _),

@@ -1,10 +1,10 @@
-import json
+﻿import json
 import subprocess
 from pathlib import Path
 
 
 class BatchBridgeClient:
-    def __init__(self, bridge_file: str = "bridge_batch_ui.pl"):
+    def __init__(self, bridge_file: str = "prolog/bridges/bridge_batch_ui.pl"):
         project_root = Path(__file__).resolve().parent.parent
         self.bridge_file = (project_root / bridge_file).resolve()
 
