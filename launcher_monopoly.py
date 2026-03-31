@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import random
 import shutil
@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Tuple
 
 
 # ============================================================
-# CONFIGURACIÃƒâ€œN
+# CONFIGURACION
 # ============================================================
 
 PROLOG_BRIDGE_FILE = "prolog/bridges/python_bridge_trace.pl"
@@ -205,7 +205,7 @@ def formato_casilla(idx: int, casilla: Casilla, jugadores: List[Jugador], propie
 
 def posiciones_monopoly_ring() -> Dict[Tuple[int, int], int]:
     """
-    OrientaciÃƒÂ³n rotada:
+    Orientacion rotada:
     - esquina inferior izquierda = 0 (SALIDA)
     """
     mapping = {}
@@ -339,7 +339,7 @@ def escenarios_precargados() -> List[Escenario]:
         ),
         Escenario(
             "esc2",
-            "Monopolio marrÃƒÂ³n formado",
+            "Monopolio marron formado",
             Estado(
                 [Jugador("jugador1", 0, 1380, ["marron2", "marron1"]),
                  Jugador("jugador2", 0, 1500, [])],
@@ -385,7 +385,7 @@ def escenarios_precargados() -> List[Escenario]:
 
 
 # ============================================================
-# VALIDACIÃƒâ€œN BÃƒÂSICA DEL ESCENARIO
+# VALIDACION BASICA DEL ESCENARIO
 # ============================================================
 
 def propiedades_validas_tablero() -> set:
@@ -408,14 +408,14 @@ def validar_escenario(estado: Estado, tiradas: List[int]) -> List[str]:
         errores.append("Debe haber al menos 2 jugadores.")
 
     if not (0 <= estado.turno < len(estado.jugadores)):
-        errores.append("El ÃƒÂ­ndice de turno es invÃƒÂ¡lido.")
+        errores.append("El indice de turno es invalido.")
 
     props_validas = propiedades_validas_tablero()
     props_vistas = set()
 
     for j in estado.jugadores:
         if not (0 <= j.posicion < 40):
-            errores.append(f"{j.nombre}: posiciÃƒÂ³n fuera de rango (0..39).")
+            errores.append(f"{j.nombre}: posicion fuera de rango (0..39).")
         if j.dinero < 0:
             errores.append(f"{j.nombre}: dinero inicial negativo.")
         for p in j.propiedades:
@@ -427,16 +427,16 @@ def validar_escenario(estado: Estado, tiradas: List[int]) -> List[str]:
 
     for t in tiradas:
         if t < 0:
-            errores.append(f"Tirada invÃƒÂ¡lida: {t}. Debe ser >= 0.")
+            errores.append(f"Tirada invalida: {t}. Debe ser >= 0.")
 
     if len(tiradas) == 0:
-        errores.append("La lista de tiradas no puede estar vacÃƒÂ­a.")
+        errores.append("La lista de tiradas no puede estar vacia.")
 
     return errores
 
 
 # ============================================================
-# SERIALIZACIÃƒâ€œN HACIA PROLOG
+# SERIALIZACION HACIA PROLOG
 # ============================================================
 
 def prolog_atom(name: str) -> str:
@@ -499,7 +499,7 @@ def ejecutar_traza_en_prolog(estado: Estado, tiradas: List[int]):
             check=False
         )
     except FileNotFoundError:
-        return None, "No se encontrÃƒÂ³ 'swipl'. Instala SWI-Prolog y aÃƒÂ±ÃƒÂ¡delo al PATH."
+        return None, "No se encontro 'swipl'. Instala SWI-Prolog y anadelo al PATH."
 
     if result.returncode != 0:
         return None, (
@@ -510,13 +510,13 @@ def ejecutar_traza_en_prolog(estado: Estado, tiradas: List[int]):
 
     salida = result.stdout.strip()
     if not salida:
-        return None, "Prolog no devolviÃƒÂ³ ninguna salida."
+        return None, "Prolog no devolvio ninguna salida."
 
     try:
         data = json.loads(salida)
         return data, ""
     except json.JSONDecodeError:
-        return None, f"La salida de Prolog no es JSON vÃƒÂ¡lido:\n{salida}"
+        return None, f"La salida de Prolog no es JSON valido:\n{salida}"
 
 
 # ============================================================
@@ -538,7 +538,7 @@ def leer_entero(msg: str, minimo=None, maximo=None, default=None) -> int:
                 continue
             return v
         except ValueError:
-            print("Introduce un entero vÃƒÂ¡lido.")
+            print("Introduce un entero valido.")
 
 
 def leer_lista_enteros(msg: str) -> List[int]:
@@ -549,7 +549,7 @@ def leer_lista_enteros(msg: str) -> List[int]:
         try:
             return [int(x.strip()) for x in raw.split(",") if x.strip()]
         except ValueError:
-            print("Formato invÃƒÂ¡lido. Ejemplo: 1,3,5,5")
+            print("Formato invalido. Ejemplo: 1,3,5,5")
 
 
 def leer_propiedades(msg: str) -> List[str]:
@@ -567,7 +567,7 @@ def construir_escenario_personalizado():
     print("\n=== ESCENARIO PERSONALIZADO ===\n")
 
     num_jugadores = leer_entero(
-        f"NÃƒÂºmero de jugadores [{DEFAULT_NUM_PLAYERS}]: ",
+        f"Numero de jugadores [{DEFAULT_NUM_PLAYERS}]: ",
         minimo=2,
         default=DEFAULT_NUM_PLAYERS
     )
@@ -583,15 +583,15 @@ def construir_escenario_personalizado():
         print(f"\nJugador {i+1}")
         nombre = f"jugador{i+1}"
         dinero = leer_entero(f"  Dinero [{dinero_default}]: ", minimo=0, default=dinero_default)
-        posicion = leer_entero("  PosiciÃƒÂ³n [0]: ", minimo=0, maximo=39, default=0)
-        props = leer_propiedades("  Propiedades iniciales (coma separadas, vacÃƒÂ­o = ninguna): ")
+        posicion = leer_entero("  Posicion [0]: ", minimo=0, maximo=39, default=0)
+        props = leer_propiedades("  Propiedades iniciales (coma separadas, vacio = ninguna): ")
         jugadores.append(Jugador(nombre, posicion, dinero, props))
 
     turno = leer_entero("Turno actual [0]: ", minimo=0, maximo=num_jugadores - 1, default=0)
 
-    modo_tiradas = input("Ã‚Â¿Tiradas aleatorias? [s/n, defecto s]: ").strip().lower()
-    if modo_tiradas in ("", "s", "si", "sÃƒÂ­"):
-        n = leer_entero(f"NÃƒÂºmero de tiradas [{DEFAULT_NUM_ROLLS}]: ", minimo=1, default=DEFAULT_NUM_ROLLS)
+    modo_tiradas = input("Tiradas aleatorias? [s/n, defecto s]: ").strip().lower()
+    if modo_tiradas in ("", "s", "si", "si"):
+        n = leer_entero(f"Numero de tiradas [{DEFAULT_NUM_ROLLS}]: ", minimo=1, default=DEFAULT_NUM_ROLLS)
         tiradas = generar_tiradas_aleatorias(n)
     else:
         tiradas = leer_lista_enteros("Introduce tiradas separadas por comas: ")
@@ -601,7 +601,7 @@ def construir_escenario_personalizado():
 
 
 # ============================================================
-# REPRODUCCIÃƒâ€œN PASO A PASO
+# REPRODUCCION PASO A PASO
 # ============================================================
 
 def mostrar_bloque_estado(titulo: str, estado: Estado, extra: Optional[List[str]] = None):
@@ -623,9 +623,9 @@ def reproducir_traza(data: dict):
     estado_final = estado_from_dict(data["estado_final"])
     metricas = data["metricas"]
 
-    print("\nModo de reproducciÃƒÂ³n:")
+    print("\nModo de reproduccion:")
     print("1. Manual (Enter en cada turno)")
-    print("2. AutomÃƒÂ¡tico")
+    print("2. Automatico")
     modo = input("Elige modo [1/2]: ").strip()
 
     manual = modo != "2"
@@ -636,7 +636,7 @@ def reproducir_traza(data: dict):
     mostrar_bloque_estado(
         "ESTADO INICIAL",
         estado_inicial,
-        extra=["La simulaciÃƒÂ³n del juego se ha ejecutado completamente en Prolog."]
+        extra=["La simulacion del juego se ha ejecutado completamente en Prolog."]
     )
     input("Pulsa Enter para comenzar...")
 
@@ -676,22 +676,22 @@ def reproducir_traza(data: dict):
     ]
 
     mostrar_bloque_estado("ESTADO FINAL", estado_final, extra=extra_final)
-    input("Pulsa Enter para volver al menÃƒÂº...")
+    input("Pulsa Enter para volver al menu...")
 
 
 # ============================================================
-# EJECUCIÃƒâ€œN DE SIMULACIÃƒâ€œN
+# EJECUCION DE SIMULACION
 # ============================================================
 
 def ejecutar_simulacion(estado: Estado, tiradas: List[int]):
     errores = validar_escenario(estado, tiradas)
     if errores:
         clear_screen()
-        print("ESCENARIO INVÃƒÂLIDO")
+        print("ESCENARIO INVALIDO")
         print("-" * 80)
         for e in errores:
             print(f"- {e}")
-        input("\nPulsa Enter para volver al menÃƒÂº...")
+        input("\nPulsa Enter para volver al menu...")
         return
 
     data, error = ejecutar_traza_en_prolog(estado, tiradas)
@@ -700,25 +700,25 @@ def ejecutar_simulacion(estado: Estado, tiradas: List[int]):
         print("ERROR")
         print("-" * 80)
         print(error)
-        input("\nPulsa Enter para volver al menÃƒÂº...")
+        input("\nPulsa Enter para volver al menu...")
         return
 
     reproducir_traza(data)
 
 
 # ============================================================
-# MENÃƒÅ¡
+# MENU
 # ============================================================
 
 def imprimir_menu():
     clear_screen()
     print("=" * 72)
-    print(" MONOPOLY - APP TERMINAL PYTHON + MOTOR LÃƒâ€œGICO EN PROLOG")
+    print(" MONOPOLY - APP TERMINAL PYTHON + MOTOR LOGICO EN PROLOG")
     print("=" * 72)
     print("1. Ver escenarios precargados")
     print("2. Ejecutar escenario precargado")
     print("3. Crear escenario personalizado")
-    print("4. Partida rÃƒÂ¡pida aleatoria")
+    print("4. Partida rapida aleatoria")
     print("5. Salir")
 
 
@@ -727,7 +727,7 @@ def ejecutar_menu():
 
     while True:
         imprimir_menu()
-        opcion = input("\nElige una opciÃƒÂ³n: ").strip()
+        opcion = input("\nElige una opcion: ").strip()
 
         if opcion == "1":
             clear_screen()
@@ -736,16 +736,16 @@ def ejecutar_menu():
             for i, esc in enumerate(escenarios, start=1):
                 print(f"{i}. {esc.nombre} -> {esc.descripcion}")
                 print(f"   Tiradas: {esc.tiradas}")
-            input("\nPulsa Enter para volver al menÃƒÂº...")
+            input("\nPulsa Enter para volver al menu...")
 
         elif opcion == "2":
             clear_screen()
-            print("SELECCIÃƒâ€œN DE ESCENARIO")
+            print("SELECCION DE ESCENARIO")
             print("-" * 72)
             for i, esc in enumerate(escenarios, start=1):
                 print(f"{i}. {esc.nombre} -> {esc.descripcion}")
 
-            idx = leer_entero("NÃƒÂºmero: ", minimo=1, maximo=len(escenarios))
+            idx = leer_entero("Numero: ", minimo=1, maximo=len(escenarios))
             esc = escenarios[idx - 1]
             ejecutar_simulacion(esc.estado, esc.tiradas)
 
@@ -764,7 +764,7 @@ def ejecutar_menu():
             break
 
         else:
-            input("OpciÃƒÂ³n no vÃƒÂ¡lida. Pulsa Enter para continuar...")
+            input("Opcion no valida. Pulsa Enter para continuar...")
 
 
 if __name__ == "__main__":
