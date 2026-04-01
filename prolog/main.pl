@@ -922,6 +922,15 @@ regla_bancarrota_aux(EstadoActual, EstadoFinal) :-
 % 4.6 Motor de reglas
 % -------------------------------------------------------------------
 
+%% fin_partida(+Estado, -Motivo)
+%  Se cumple cuando la partida ha terminado por no quedar jugadores
+%  o por quedar un unico ganador.
+fin_partida(estado(Js, _Tablero, _Turno), sin_jugadores) :-
+    length(Js, 0),
+    !.
+fin_partida(estado(Js, _Tablero, _Turno), victoria) :-
+    length(Js, 1).
+
 /*
 Motor iterativo de reglas:
 - La implementacion canonica es la instrumentada con metricas.
@@ -961,6 +970,9 @@ turno_con_reglas(EstadoIn, Tirada, EstadoOut) :-
 /*
  Nucleo compartido de simulacion.
 */
+simular_con_reglas_core(Estado, Tiradas, _N, Estado, Tiradas, M, M) :-
+    fin_partida(Estado, _Motivo),
+    !.
 simular_con_reglas_core(Estado, Tiradas, 0, Estado, Tiradas, M, M) :- !.
 simular_con_reglas_core(EstadoIn, [T | Ts], N, EstadoOut, TiradasRestantes, M0, MOut) :-
     integer(N),
@@ -1002,36 +1014,43 @@ simular_turnos_con_reglas(EstadoIn, ListaTiradas, EstadoOut) :-
 Metricas del motor.
 
 Representacion:
-- metricas(IterPorTurnoRev, IterTotal, Compras, Alquileres, Bancarrotas)
+- metricas(IterPorTurnoRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios)
 */
 
 %% metricas_init(-Metricas)
 %  Crea el acumulador de metricas vacio usado por el motor instrumentado.
-metricas_init(metricas([], 0, 0, 0, 0)).
+metricas_init(metricas([], 0, 0, 0, 0, 0)).
 
 metricas_inc_compras(
-    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
-    metricas(IterRev, IterTotal, Compras2, Alquileres, Bancarrotas)
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios),
+    metricas(IterRev, IterTotal, Compras2, Alquileres, Bancarrotas, Monopolios)
 ) :-
     Compras2 is Compras + 1.
 
 metricas_inc_alquileres(
-    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
-    metricas(IterRev, IterTotal, Compras, Alquileres2, Bancarrotas)
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios),
+    metricas(IterRev, IterTotal, Compras, Alquileres2, Bancarrotas, Monopolios)
 ) :-
     Alquileres2 is Alquileres + 1.
 
 metricas_inc_bancarrotas_n(
-    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios),
     N,
-    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas2)
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas2, Monopolios)
 ) :-
     Bancarrotas2 is Bancarrotas + N.
 
+metricas_inc_monopolios_n(
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios),
+    N,
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios2)
+) :-
+    Monopolios2 is Monopolios + N.
+
 metricas_registrar_iter_turno(
-    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+    metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, Monopolios),
     IterTurno,
-    metricas([IterTurno | IterRev], IterTotal2, Compras, Alquileres, Bancarrotas)
+    metricas([IterTurno | IterRev], IterTotal2, Compras, Alquileres, Bancarrotas, Monopolios)
 ) :-
     IterTotal2 is IterTotal + IterTurno.
 
@@ -1050,8 +1069,21 @@ regla_alquiler_metricas(EstadoIn, M0, EstadoOut, M1) :-
     ;   metricas_inc_alquileres(M0, M1)
     ).
 
+%% num_monopolios_estado(+Estado, -Total)
+%  Cuenta el numero total de monopolios presentes en el estado.
+%  Cada monopolio se cuenta como un par (Jugador, Color).
+num_monopolios_estado(estado(Js, Tablero, _Turno), Total) :-
+    findall(Color,
+            (
+                member(Jugador, Js),
+                monopolio_color(Jugador, Tablero, Color)
+            ),
+            Colores),
+    length(Colores, Total).
+
 regla_monopolio_metricas(EstadoIn, M, EstadoOut, M) :-
     regla_monopolio(EstadoIn, EstadoOut).
+
 
 regla_bancarrota_metricas(EstadoIn, M0, EstadoOut, M1) :-
     regla_bancarrota(EstadoIn, EstadoOut),
@@ -1090,6 +1122,17 @@ aplicar_reglas_hasta_estable_metricas_aux(EstadoActual, MaxRestante, EstadoFinal
         )
     ).
 
+%% registrar_monopolios_nuevos(+EstadoAntes, +EstadoDespues, +M0, -M1)
+%  Incrementa la metrica con los monopolios nuevos aparecidos entre dos estados.
+registrar_monopolios_nuevos(EstadoAntes, EstadoDespues, M0, M1) :-
+    num_monopolios_estado(EstadoAntes, N0),
+    num_monopolios_estado(EstadoDespues, N1),
+    Nuevos is N1 - N0,
+    (   Nuevos > 0
+    ->  metricas_inc_monopolios_n(M0, Nuevos, M1)
+    ;   M1 = M0
+    ).
+
 resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, MOut) :-
     regla_compra_metricas(EstadoIn, M0, E1, M1),
     (   E1 == EstadoIn
@@ -1099,8 +1142,9 @@ resolver_evento_casilla_metricas(EstadoIn, M0, EstadoOut, MOut) :-
         ;   EstadoOut = E2,
             MOut = M2
         )
-    ;   EstadoOut = E1,
-        MOut = M1
+    ;   registrar_monopolios_nuevos(EstadoIn, E1, M1, M2),
+        EstadoOut = E1,
+        MOut = M2
     ).
 
 resolver_evento_especial_metricas(EstadoIn, M, EstadoOut, M) :-
