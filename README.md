@@ -1,8 +1,6 @@
-﻿# Monopoly en Prolog
+# Monopoly en Prolog
 
-Proyecto de la practica de **Conocimiento y Razonamiento Automatizado**. La idea del trabajo es modelar una version simplificada de Monopoly en **SWI-Prolog** y luego apoyarnos en **Python** para visualizar partidas, escenarios y simulaciones.
-
-No hemos intentado hacer el Monopoly comercial completo, sino una base razonable para trabajar estados, reglas, transiciones, metricas y analisis de partidas.
+Proyecto de la practica de **Conocimiento y Razonamiento Automatizado**. El repositorio implementa una version simplificada de Monopoly con un **motor de juego en SWI-Prolog** y una **aplicacion de terminal en Python** para ejecutar simulaciones, reproducir partidas paso a paso y analizar resultados.
 
 ## Autores
 
@@ -10,30 +8,30 @@ No hemos intentado hacer el Monopoly comercial completo, sino una base razonable
 - Lucia Cantero Anchuelo
 - Rodrigo Rey Henche
 
-## Que hace el proyecto
+## Que hay en el proyecto
 
-El nucleo del proyecto esta en Prolog. Ahi se define:
+El nucleo del juego esta en Prolog. Ahi se modelan:
 
-- el estado del juego,
-- el tablero,
+- el estado del juego y el tablero base,
 - el movimiento por turnos,
-- la compra de propiedades,
-- los alquileres,
-- los monopolios,
-- la bancarrota,
-- la carcel y los dobles,
-- las hipotecas,
-- la construccion de casas,
-- las metricas,
-- y el ranking dinamico por patrimonio.
+- compras y alquileres,
+- monopolios,
+- bancarrota,
+- carcel y dobles,
+- hipotecas y deshipotecas,
+- construccion de casas,
+- metricas de simulacion,
+- ranking final por patrimonio.
 
-A partir de ese motor hemos montado tres formas de usar el proyecto:
+Encima de ese motor, Python aporta una interfaz de terminal que permite:
 
-1. una app de terminal para ver la partida paso a paso en ASCII;
-2. una interfaz grafica para visualizar escenarios y partidas aleatorias;
-3. una interfaz separada para lanzar muchas simulaciones y sacar metricas agregadas.
+- ver escenarios precargados definidos en Prolog,
+- ejecutar partidas paso a paso con traza,
+- crear escenarios personalizados,
+- lanzar una partida rapida aleatoria,
+- ejecutar analisis por lotes con resumen agregado.
 
-## Estructura del proyecto
+## Estructura real del repositorio
 
 ```text
 Practica1-Monopolio-Prolog/
@@ -41,164 +39,134 @@ Practica1-Monopolio-Prolog/
 |   |-- main.pl
 |   |-- scenarios.pl
 |   |-- bridges/
-|   |   |-- bridge_trace_ui.pl
-|   |   |-- bridge_batch_ui.pl
 |   |   `-- python_bridge_trace.pl
 |   `-- tests/
 |       `-- monopoly_tests.pl
-|-- ui_monopoly/
-|   |-- app.py
-|   |-- main_window.py
-|   |-- board_widget.py
-|   `-- bridge_client.py
-|-- ui_batch/
-|   |-- app.py
-|   |-- main_window.py
-|   `-- bridge_client.py
 |-- docs/
 |   |-- enunciado/
 |   `-- notas/
+|-- analisis_lotes.py
 |-- launcher_monopoly.py
-|-- launcher_batch.py
 |-- README.md
 `-- LICENSE
 ```
 
-## Para que sirve cada parte
+## Componentes principales
 
 ### `prolog/main.pl`
-Es el motor principal del juego. Aqui esta la logica importante del proyecto.
+
+Motor principal del juego. Implementa el tablero, el movimiento, las reglas, la gestion de carcel, hipotecas, casas, bancarrota, metricas y ranking.
 
 ### `prolog/scenarios.pl`
-Contiene escenarios preparados para probar comportamientos concretos: compras, alquileres, carcel, hipotecas, casas, patrimonio, etc.
 
-### `prolog/bridges/`
-Son los puentes entre Prolog y Python.
+Catalogo de escenarios reproducibles del proyecto. Incluye casos de compras, monopolios, alquileres, dobles, carcel, hipotecas, patrimonio y construccion de casas.
 
-- `bridge_trace_ui.pl`: usado por la interfaz grafica principal.
-- `bridge_batch_ui.pl`: usado por la app de simulaciones por lotes.
-- `python_bridge_trace.pl`: usado por la app de terminal ASCII.
+### `prolog/bridges/python_bridge_trace.pl`
 
-### `ui_monopoly/`
-Es la app visual principal. Sirve para cargar escenarios o generar partidas aleatorias y verlas paso a paso.
+Puente entre Prolog y Python. Convierte el estado y la traza de la simulacion a JSON para que la aplicacion Python pueda mostrar:
 
-### `ui_batch/`
-Es la app de analisis. Sirve para ejecutar muchas simulaciones y ver metricas globales.
+- estados inicial y final,
+- pasos intermedios,
+- detalle del actor de cada accion,
+- metricas acumuladas,
+- ranking final,
+- metadatos del escenario.
 
 ### `launcher_monopoly.py`
-Arranca la aplicacion de terminal.
 
-### `launcher_batch.py`
-Arranca la app de simulaciones por lotes.
+Aplicacion principal de terminal. Muestra el tablero en ASCII y ofrece un menu interactivo con todas las opciones de simulacion.
+
+### `analisis_lotes.py`
+
+Utilidades de apoyo para generar configuraciones aleatorias y acumular estadisticas en ejecuciones por lotes.
+
+### `prolog/tests/monopoly_tests.pl`
+
+Suite de tests en Prolog para validar reglas y escenarios del motor.
 
 ## Requisitos
 
-Para ejecutar el proyecto hace falta tener:
+- `swipl` disponible en el `PATH`
+- `python` disponible en el `PATH`
 
-- `swipl` en el `PATH`
-- `python` en el `PATH`
-- `PySide6` instalado para las interfaces graficas
+En este entorno se ha comprobado la presencia de:
 
-## Como ejecutar el proyecto
+- SWI-Prolog `10.0.0`
+- Python `3.14.3`
 
-### 1. Ejecutar los tests de Prolog
+## Como ejecutar
 
-```powershell
-swipl -q -s prolog/tests/monopoly_tests.pl -g run_tests,halt
-```
-
-### 2. Cargar Prolog a mano
-
-```powershell
-swipl
-```
-
-Y ya dentro:
-
-```prolog
-['prolog/scenarios.pl'].
-listar_escenarios.
-ejecutar_escenario_metricas(esc5, EstadoFinal, Metricas).
-```
-
-### 3. Ejecutar la app de terminal ASCII
+### Ejecutar la app de terminal
 
 ```powershell
 python launcher_monopoly.py
 ```
 
-Esta app permite:
+El menu actual permite:
 
-- ver escenarios precargados,
-- ejecutarlos paso a paso,
-- crear escenarios personalizados,
-- y lanzar partidas aleatorias sencillas.
+1. Ver escenarios precargados
+2. Ejecutar escenario precargado
+3. Crear escenario personalizado
+4. Partida rapida aleatoria
+5. Analisis por lotes
+6. Salir
 
-### 4. Ejecutar la interfaz grafica principal
-
-Puedes abrirla de cualquiera de estas dos formas:
-
-```powershell
-python -m ui_monopoly.app
-```
-
-O si prefieres desde Python importado:
+### Ejecutar los tests de Prolog
 
 ```powershell
-python -c "from ui_monopoly.app import main; main()"
+swipl -q -s prolog/tests/monopoly_tests.pl -g run_tests,halt
 ```
 
-Esta interfaz sirve para:
-
-- cargar escenarios del catalogo,
-- generar partidas aleatorias,
-- avanzar paso a paso,
-- usar autoplay,
-- ver el tablero,
-- ver el ranking dinamico,
-- y seguir visualmente la evolucion de la partida.
-
-### 5. Ejecutar la app de simulaciones por lotes
+### Cargar el motor manualmente en Prolog
 
 ```powershell
-python launcher_batch.py
+swipl
 ```
 
-Esta app sirve para:
+Y dentro de la consola:
 
-- ejecutar un banco de `N` simulaciones aleatorias,
-- ver cuantas partidas terminan y cuantas no,
-- comparar compras, alquileres y bancarrotas,
-- y revisar el resultado individual de cada simulacion.
+```prolog
+['prolog/scenarios.pl'].
+resolver_escenario_metricas(esc5, EstadoFinal, Metricas).
+ranking_jugadores(EstadoFinal, Ranking).
+```
 
-## Como funciona en general
+## Escenarios incluidos
 
-La arquitectura del proyecto es bastante simple:
+El catalogo actual de `prolog/scenarios.pl` contiene 25 escenarios (`esc1` a `esc25`) orientados a comprobar comportamientos concretos, entre ellos:
 
-- **Prolog** resuelve la logica del juego.
-- **Python** no decide reglas del juego: solo lanza consultas, recibe resultados y los representa.
-- Los **bridges** convierten estados de Prolog a JSON para que las apps Python puedan consumirlos.
+- compras iniciales,
+- monopolios,
+- bancarrota por alquiler,
+- dobles y tercer doble a carcel,
+- salida de carcel por doble o pagando,
+- hipotecas y deshipotecas,
+- alquiler bloqueado por hipoteca,
+- construccion de casas,
+- restricciones de construccion,
+- estabilidad de patrimonio y ranking.
 
-Esto nos ha venido bien porque separa bastante bien la parte logica de la parte visual.
+La aplicacion Python consulta este catalogo directamente desde Prolog, por lo que la lista visible en el menu siempre sale del motor real.
 
-## Escenarios y validacion
+## Como funciona la arquitectura
 
-Una parte importante del proyecto son los escenarios reproducibles de `prolog/scenarios.pl`.
+- **Prolog** decide la logica del juego y ejecuta las simulaciones.
+- **Python** construye escenarios de entrada, llama a Prolog y representa la salida.
+- El archivo `prolog/bridges/python_bridge_trace.pl` serializa el resultado en JSON para desacoplar la logica de la visualizacion.
 
-Nos sirven para:
+## Analisis por lotes
 
-- comprobar que cada regla funciona,
-- preparar casos de defensa,
-- comparar comportamiento antes y despues de cambios,
-- y visualizar situaciones concretas como carcel, hipoteca o construccion de casas.
+La opcion de analisis por lotes permite ejecutar muchas partidas seguidas con configuraciones parcialmente fijas o aleatorias. El resumen final agrega, entre otros datos:
 
-Ademas de eso, el proyecto tiene tests en `prolog/tests/monopoly_tests.pl`.
+- numero de partidas,
+- victorias en primera posicion,
+- medias de pasos, compras, alquileres, bancarrotas y monopolios,
+- patrimonio, dinero y propiedades medias por jugador.
 
-## Notas
+## Documentacion adicional
 
-- La app de terminal y las interfaces graficas usan el mismo motor de Prolog.
-- La app por lotes no sustituye a la visual: sirve para otra cosa, que es sacar metricas de muchas partidas.
-- La carpeta `docs/` guarda el enunciado y notas auxiliares del proyecto.
+- `docs/enunciado/` contiene el enunciado de la practica.
+- `docs/notas/` guarda notas auxiliares y pruebas.
 
 ## Licencia
 
