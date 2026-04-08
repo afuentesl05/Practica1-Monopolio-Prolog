@@ -1,4 +1,4 @@
-﻿:- begin_tests(monopoly).
+:- begin_tests(monopoly).
 
 :- ensure_loaded('../main.pl').
 :- ensure_loaded('../scenarios.pl').
@@ -24,12 +24,12 @@ num_jugadores(estado(Js, _Tab, _Turno), N) :-
 
 turno_actual(estado(_Js, _Tab, Turno), Turno).
 
-metricas_resumen(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas),
+metricas_resumen(metricas(IterRev, IterTotal, Compras, Alquileres, Bancarrotas, _Monopolios),
                  IterPorTurno, IterTotal, Compras, Alquileres, Bancarrotas) :-
     reverse(IterRev, IterPorTurno).
 
 % ============================================================
-% TESTS BÃSICOS DE TIRADAS
+% TESTS BÁSICOS DE TIRADAS
 % ============================================================
 
 test(valor_tirada_entero) :-
@@ -129,7 +129,7 @@ test(esc5_ranking_final) :-
     ]).
 
 % ============================================================
-% DOBLES Y CÃRCEL
+% DOBLES Y CÁRCEL
 % ============================================================
 
 test(esc6_doble_simple_repite_turno) :-
@@ -342,7 +342,7 @@ test(esc17_ranking_tras_deshipoteca) :-
 % ============================================================
 
 test(esc18_construccion_casa_basica) :-
-    resolver_escenario_metricas(esc18, EFinal, Metricas),
+    once(resolver_escenario_metricas(esc18, EFinal, Metricas)),
 
     turno_actual(EFinal, 0),
     jugador_resumen(EFinal, ana, 0, 1330, PropsAna, libre, 0),
@@ -391,12 +391,12 @@ test(esc20_alquiler_con_dos_casas) :-
     assertion(Bancarrotas =:= 0).
 
 test(esc21_construir_casa_mantiene_patrimonio) :-
-    estado_inicial(esc21, E0),
+    once(estado_inicial(esc21, E0)),
     E0 = estado([JugAna0, JugBob0], Tablero, _),
     patrimonio_jugador(JugAna0, Tablero, PatrimonioAna0),
     patrimonio_jugador(JugBob0, Tablero, PatrimonioBob0),
 
-    resolver_escenario_metricas(esc21, EFinal, _Metricas),
+    once(resolver_escenario_metricas(esc21, EFinal, _Metricas)),
     EFinal = estado(JsF, _, _),
     get_jugador(ana, JsF, JugAnaF),
     get_jugador(bob, JsF, JugBobF),
@@ -410,7 +410,7 @@ test(esc21_construir_casa_mantiene_patrimonio) :-
     assertion(PatrimonioBobF =:= 1500).
 
 test(esc21_ranking_tras_construir_casa) :-
-    resolver_escenario_metricas(esc21, EFinal, _Metricas),
+    once(resolver_escenario_metricas(esc21, EFinal, _Metricas)),
     ranking_jugadores(EFinal, Ranking),
     assertion(Ranking == [
         ranking(bob, 1500, 1500, 0, 0),
@@ -482,3 +482,5 @@ test(esc25_no_construye_mas_de_cuatro_casas) :-
     assertion(Bancarrotas =:= 0).
 
 :- end_tests(monopoly).
+
+

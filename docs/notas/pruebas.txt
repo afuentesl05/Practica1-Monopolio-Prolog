@@ -1,11 +1,165 @@
-?- [scenarios].
-?- listar_escenarios.
-?- ejecutar_escenario(esc14, EFinal).
-?- defensa_base.
-?- defensa_dobles_y_carcel.
-?- defensa_hipotecas.
-?- ejecutar_escenario(esc18, _).
-?- ejecutar_escenario(esc19, _).
-?- ejecutar_escenario(esc20, _).
-?- validar_patrimonio_casa_estable.
-?- defensa_casas_completa.
+
+Monopoly en Prolog
+
+CARGA INICIAL
+Cargar el proyecto completo
+[prolog/main, prolog/scenarios].
+
+BLOQUE 1. COMPROBACIONES BASICAS
+Ver el estado inicial minimo del juego
+estado_inicial(E).
+
+Ver el tablero base
+tablero_base(Tablero).
+
+Ver quien es el jugador activo al empezar
+estado_inicial(E), jugador_activo(E, Jugador).
+
+Ver la casilla actual del jugador activo
+estado_inicial(E), casilla_actual(E, Casilla).
+
+BLOQUE 2. MOVIMIENTO
+Mover 7 casillas desde el inicio
+estado_inicial(E0), mover(E0, 7, E1, PasoSalida).
+
+Comprobar que al pasar por salida se cobran 200
+tablero_base(T), E0 = estado([jugador(ana,39,1500,[]), jugador(bob,0,1500,[])], T, 0), mover(E0, 3, E1, PasoSalida).
+
+Ejecutar un turno completo con reglas
+estado_inicial(E0), ejecutar_turno(E0, 1, E1).
+
+Simular varios turnos seguidos
+estado_inicial(E0), simular_turnos_con_reglas(E0, [1,3,5,5], EFinal).
+
+BLOQUE 3. COMPRAS, ALQUILER Y BANCARROTA
+Escenario de compras iniciales
+resolver_escenario_metricas(esc1, EFinal, Metricas).
+
+Escenario donde Ana forma el monopolio marron
+resolver_escenario_metricas(esc2, EFinal, Metricas).
+
+Escenario de bancarrota por alquiler
+resolver_escenario_metricas(esc3, EFinal, Metricas).
+
+Escenario de alquileres consecutivos
+resolver_escenario_metricas(esc4, EFinal, Metricas).
+
+Escenario completo legacy de 10 turnos
+resolver_escenario_metricas(esc5, EFinal, Metricas).
+
+Ver el ranking final del escenario completo
+resolver_escenario_metricas(esc5, EFinal, _), ranking_jugadores(EFinal, Ranking).
+
+BLOQUE 4. DOBLES Y CARCEL
+Doble simple: el jugador repite turno
+resolver_escenario_metricas(esc6, EFinal, Metricas).
+
+Tercer doble consecutivo: va a la carcel
+resolver_escenario_metricas(esc7, EFinal, Metricas).
+
+Caer en la casilla ir_carcel
+resolver_escenario_metricas(esc8, EFinal, Metricas).
+
+Jugador encarcelado que no saca doble y no sale
+resolver_escenario_metricas(esc9, EFinal, Metricas).
+
+Jugador encarcelado que sale por doble
+resolver_escenario_metricas(esc10, EFinal, Metricas).
+
+Jugador encarcelado que paga 50 y sale
+resolver_escenario_metricas(esc11, EFinal, Metricas).
+
+Pago de salida de carcel que provoca bancarrota
+resolver_escenario_metricas(esc15, EFinal, Metricas).
+
+BLOQUE 5. HIPOTECAS
+Ver el valor de hipoteca de marron1
+tablero_base(Tablero), valor_hipoteca(marron1, Tablero, Valor).
+
+Ver el coste de cancelar la hipoteca de marron1
+tablero_base(Tablero), coste_cancelacion_hipoteca(marron1, Tablero, Coste).
+
+Escenario de hipotecar una propiedad
+resolver_escenario_metricas(esc12, EFinal, Metricas).
+
+Escenario de hipotecar y deshipotecar
+resolver_escenario_metricas(esc13, EFinal, Metricas).
+
+Escenario donde una hipotecada no cobra alquiler
+resolver_escenario_metricas(esc14, EFinal, Metricas).
+
+Ver que hipotecar mantiene patrimonio
+resolver_escenario_metricas(esc16, EFinal, _), EFinal = estado([JugAna | _], Tablero, _), patrimonio_jugador(JugAna, Tablero, Patrimonio).
+
+Ver que deshipotecar baja patrimonio
+resolver_escenario_metricas(esc17, EFinal, _), EFinal = estado([JugAna | _], Tablero, _), patrimonio_jugador(JugAna, Tablero, Patrimonio).
+
+BLOQUE 6. CASAS Y MONOPOLIOS
+Construir una casa sobre marron1
+resolver_escenario_metricas(esc18, EFinal, Metricas).
+
+Alquiler con una casa
+resolver_escenario_metricas(esc19, EFinal, Metricas).
+
+Alquiler con dos casas
+resolver_escenario_metricas(esc20, EFinal, Metricas).
+
+Ver que construir una casa mantiene patrimonio
+resolver_escenario_metricas(esc21, EFinal, _), EFinal = estado([JugAna | _], Tablero, _), patrimonio_jugador(JugAna, Tablero, Patrimonio).
+
+Intento fallido de construir sin monopolio
+resolver_escenario_metricas(esc22, EFinal, Metricas).
+
+Intento fallido de construir sobre una propiedad hipotecada
+resolver_escenario_metricas(esc23, EFinal, Metricas).
+
+Intento fallido de construir sin dinero suficiente
+resolver_escenario_metricas(esc24, EFinal, Metricas).
+
+Intento fallido de construir teniendo ya 4 casas
+resolver_escenario_metricas(esc25, EFinal, Metricas).
+
+Ver los colores de monopolio de Ana en un escenario
+resolver_escenario_metricas(esc18, EFinal, _), EFinal = estado([JugAna | _], Tablero, _), colores_monopolio_jugador(JugAna, Tablero, Colores).
+
+Ver el alquiler efectivo de una propiedad con casas
+resolver_escenario_metricas(esc20, EFinal, _), EFinal = estado([_, JugBob], Tablero, _), alquiler_propiedad_jugador(JugBob, marron1, Tablero, Alquiler).
+
+BLOQUE 7. METRICAS, PATRIMONIO Y RANKING
+Ver las metricas completas de un escenario
+resolver_escenario_metricas(esc5, _EFinal, Metricas).
+
+Ver el patrimonio de los jugadores tras un escenario
+resolver_escenario_metricas(esc5, estado([J1, J2], Tablero, _), _), patrimonio_jugador(J1, Tablero, P1), patrimonio_jugador(J2, Tablero, P2).
+
+Ver el ranking final tras un escenario
+resolver_escenario_metricas(esc21, EFinal, _), ranking_jugadores(EFinal, Ranking).
+
+BLOQUE 8. PREDICADOS SUELTOS RAPIDOS
+Comprobar si una tirada es doble
+es_doble(tirada(3,3)).
+
+Comprobar una tirada que no es doble
+es_doble(tirada(2,3)).
+
+Pasar una tirada de dos dados a valor total
+valor_tirada(tirada(4,2), Valor).
+
+Pasar una tirada legacy entera a valor total
+valor_tirada(6, Valor).
+
+BLOQUE 9. CONSULTAS CORTAS PARA QUEDAR BIEN RAPIDO
+Compra sencilla
+resolver_escenario_metricas(esc1, EFinal, Metricas).
+
+Bancarrota sencilla
+resolver_escenario_metricas(esc3, EFinal, Metricas).
+
+Carcel por tres dobles
+resolver_escenario_metricas(esc7, EFinal, Metricas).
+
+Hipoteca sencilla
+resolver_escenario_metricas(esc12, EFinal, Metricas).
+
+Casa sencilla
+resolver_escenario_metricas(esc18, EFinal, Metricas).
